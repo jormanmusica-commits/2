@@ -10,6 +10,7 @@ import TransferModal from './components/TransferModal';
 import { validateTransactionChange, findFirstIncomeDate } from './utils/transactionUtils';
 import ProfileCreationModal from './components/ProfileCreationModal';
 import { exportProfileToCsv } from './utils/exportUtils';
+import FixedExpenseModal from './components/FixedExpenseModal';
 
 const CASH_METHOD_ID = 'efectivo';
 
@@ -101,6 +102,7 @@ const App: React.FC = () => {
   const [transferDirection, setTransferDirection] = useState<'deposit' | 'withdrawal' | null>(null);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isProfileCreationModalOpen, setIsProfileCreationModalOpen] = useState(false);
+  const [isFixedExpenseModalOpen, setIsFixedExpenseModalOpen] = useState(false);
 
   const activeProfile = useMemo(() => profiles.find(p => p.id === activeProfileId), [profiles, activeProfileId]);
 
@@ -402,6 +404,72 @@ const App: React.FC = () => {
     }
   }, [activeProfile, balance, balancesByMethod, summaryData]);
 
+  const handleExportAllDataToJson = useCallback(() => {
+    try {
+      const allData = {
+        profiles: profiles,
+        activeProfileId: activeProfileId,
+        theme: theme,
+      };
+  
+      const jsonString = JSON.stringify(allData, null, 2); // Pretty print for readability
+      const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute("download", `income_tracker_backup_${dateStr}.json`);
+      
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error al exportar los datos a JSON:", error);
+      alert("Ocurrió un error al intentar exportar los datos. Por favor, inténtalo de nuevo.");
+    }
+  }, [profiles, activeProfileId, theme]);
+
+  const handleImportDataFromJson = useCallback((file: File) => {
+    if (!file) return;
+  
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result;
+      if (typeof result !== 'string') {
+        alert("Error al leer el archivo.");
+        return;
+      }
+      
+      if (!window.confirm("¿Estás seguro de que quieres importar estos datos? Se sobrescribirán todos los datos actuales. Esta acción no se puede deshacer.")) {
+        return;
+      }
+
+      try {
+        const data = JSON.parse(result);
+        
+        // Basic validation
+        if (!data.profiles || !Array.isArray(data.profiles) || typeof data.theme !== 'string') {
+            throw new Error("El archivo JSON no tiene el formato correcto.");
+        }
+
+        setProfiles(data.profiles);
+        setActiveProfileId(data.activeProfileId);
+        setTheme(data.theme);
+        
+        // We must reload to ensure all state is correctly re-initialized from localStorage
+        window.location.reload();
+
+      } catch (error) {
+        console.error("Error al importar datos JSON:", error);
+        alert("Error: El archivo seleccionado no es un archivo de respaldo válido.");
+      }
+    };
+    reader.readAsText(file);
+  }, []);
+
   const minDateForExpenses = useMemo(() => {
     if (!activeProfile) return undefined;
     const firstIncomeDate = findFirstIncomeDate(activeProfile.data.transactions);
@@ -495,6 +563,9 @@ const App: React.FC = () => {
                 onUpdateBankAccount={handleUpdateBankAccount}
                 onDeleteBankAccount={handleDeleteBankAccount}
                 onExportData={handleExportData}
+                onExportAllDataToJson={handleExportAllDataToJson}
+                onImportDataFromJson={handleImportDataFromJson}
+                onManageFixedExpenses={() => setIsFixedExpenseModalOpen(true)}
               />
             )}
             {currentPage === 'ingresos' && (
@@ -553,6 +624,18 @@ const App: React.FC = () => {
         onClose={() => setIsProfileCreationModalOpen(false)}
         onAddProfile={handleAddProfile}
       />
+      {activeProfile && <FixedExpenseModal
+        isOpen={isFixedExpenseModalOpen}
+        onClose={() => setIsFixedExpenseModalOpen(false)}
+        fixedExpenses={activeProfile.data.fixedExpenses}
+        categories={activeProfile.data.categories}
+        onAddFixedExpense={handleAddFixedExpense}
+        onDeleteFixedExpense={handleDeleteFixedExpense}
+        currency={activeProfile.currency}
+        onAddCategory={handleAddCategory}
+        onUpdateCategory={handleUpdateCategory}
+        onDeleteCategory={handleDeleteCategory}
+      />}
     </div>
   );
 };

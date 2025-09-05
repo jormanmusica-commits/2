@@ -19,7 +19,6 @@ interface TransactionFormProps {
   categories?: Category[];
   selectedCategoryId?: string;
   onCategorySelectClick?: () => void;
-  onFixedExpenseClick?: () => void;
   minDate?: string;
 }
 
@@ -177,7 +176,7 @@ const CustomDatePicker: React.FC<{
 
 const TransactionForm: React.FC<TransactionFormProps> = ({ 
     transactionType, onAddTransaction, categories = [], selectedCategoryId, onCategorySelectClick,
-    onFixedExpenseClick, minDate, currency
+    minDate, currency
 }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -253,19 +252,6 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
     <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg mt-4">
       <h3 className="text-lg font-bold text-center">{config.title}</h3>
       
-      {!isIncome && onFixedExpenseClick && (
-        <div className="my-4">
-          <button
-            type="button"
-            onClick={onFixedExpenseClick}
-            className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400 py-2 px-4 rounded-lg border-2 border-dashed border-amber-400/50 dark:border-amber-600/50 hover:bg-amber-500/10 transition-colors"
-          >
-            <BoltIcon className="w-4 h-4" />
-            Gastos Fijos
-          </button>
-        </div>
-      )}
-
       <div className="space-y-4">
         <AmountInput
             value={amount}

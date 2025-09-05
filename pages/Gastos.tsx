@@ -8,6 +8,7 @@ import BankAccountModal from '../components/BankAccountModal';
 import BankSelectionModal from '../components/BankSelectionModal';
 import BankIcon from '../components/icons/BankIcon';
 import FixedExpenseModal from '../components/FixedExpenseModal';
+import BoltIcon from '../components/icons/BoltIcon';
 
 const CASH_METHOD_ID = 'efectivo';
 
@@ -47,6 +48,7 @@ const Gastos: React.FC<GastosProps> = ({
     const [isBankSelectionModalOpen, setIsBankSelectionModalOpen] = useState(false);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
     const [isFixedExpenseModalOpen, setIsFixedExpenseModalOpen] = useState(false);
+    const [pendingFixedExpense, setPendingFixedExpense] = useState<FixedExpense | null>(null);
     const formContainerRef = useRef<HTMLDivElement>(null);
 
     const bankBalance = Object.entries(balancesByMethod)
@@ -57,9 +59,26 @@ const Gastos: React.FC<GastosProps> = ({
     const isBankDisabled = bankBalance <= 0;
     const isCashDisabled = cashBalance <= 0;
     
+    const handleAddPendingFixedExpense = (paymentMethodId: string) => {
+        if (!pendingFixedExpense) return;
+        onAddTransaction(
+            pendingFixedExpense.name,
+            pendingFixedExpense.amount,
+            new Date().toISOString().split('T')[0],
+            'expense',
+            paymentMethodId,
+            pendingFixedExpense.categoryId
+        );
+        setPendingFixedExpense(null);
+    };
+
     const handleSelectMethod = (id: string) => {
-      setActiveMethodId(id);
-      setIsFormVisible(true);
+        if (pendingFixedExpense) {
+            handleAddPendingFixedExpense(id);
+        } else {
+            setActiveMethodId(id);
+            setIsFormVisible(true);
+        }
     };
 
     const getButtonClass = (isActive: boolean, disabled = false) => {
@@ -78,8 +97,8 @@ const Gastos: React.FC<GastosProps> = ({
     const selectedBank = bankAccounts.find(b => b.id === activeMethodId);
 
     const handleBankSelect = (bankId: string) => {
-      handleSelectMethod(bankId);
       setIsBankSelectionModalOpen(false);
+      handleSelectMethod(bankId);
     };
 
     const handleFormSubmit = (description: string, amount: number, date: string, categoryId?: string) => {
@@ -102,20 +121,8 @@ const Gastos: React.FC<GastosProps> = ({
     };
 
     const handleSelectFixedExpense = (expense: FixedExpense) => {
-      if (!activeMethodId) {
-        alert('Por favor, selecciona primero un método de pago.');
-        return;
-      }
-      onAddTransaction(
-        expense.name,
-        expense.amount,
-        new Date().toISOString().split('T')[0],
-        'expense',
-        activeMethodId,
-        expense.categoryId
-      );
-      setIsFixedExpenseModalOpen(false);
-      setIsFormVisible(false);
+        setPendingFixedExpense(expense);
+        setIsFixedExpenseModalOpen(false);
     };
 
     return (
@@ -144,7 +151,24 @@ const Gastos: React.FC<GastosProps> = ({
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">1. Selecciona un método:</h3>
+                  <div className="mb-4">
+                    <button
+                      type="button"
+                      onClick={() => setIsFixedExpenseModalOpen(true)}
+                      className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-amber-600 dark:text-amber-400 py-2 px-4 rounded-lg border-2 border-dashed border-amber-400/50 dark:border-amber-600/50 hover:bg-amber-500/10 transition-colors"
+                    >
+                      <BoltIcon className="w-4 h-4" />
+                      Añadir desde Gastos Fijos
+                    </button>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                    {pendingFixedExpense ? '2. Selecciona un método de pago' : 'O selecciona un método para un nuevo gasto'}
+                  </h3>
+                   {pendingFixedExpense && (
+                    <div className="mb-4 p-3 bg-blue-500/10 text-blue-700 dark:text-blue-300 rounded-lg text-center text-sm font-medium animate-fade-in">
+                      Añadiendo: <strong>{pendingFixedExpense.name}</strong>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <button
                       onClick={() => setIsBankSelectionModalOpen(true)}
@@ -179,7 +203,6 @@ const Gastos: React.FC<GastosProps> = ({
                           categories={categories}
                           selectedCategoryId={selectedCategoryId}
                           onCategorySelectClick={() => setIsCategoryModalOpen(true)}
-                          onFixedExpenseClick={() => setIsFixedExpenseModalOpen(true)}
                           minDate={minDateForExpenses}
                           currency={currency}
                       />
@@ -228,6 +251,9 @@ const Gastos: React.FC<GastosProps> = ({
           onDeleteFixedExpense={onDeleteFixedExpense}
           onSelectFixedExpense={handleSelectFixedExpense}
           currency={currency}
+          onAddCategory={onAddCategory}
+          onUpdateCategory={onUpdateCategory}
+          onDeleteCategory={onDeleteCategory}
         />
       </>
     );
