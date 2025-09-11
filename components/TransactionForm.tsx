@@ -150,6 +150,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
             value={date}
             onChange={setDate}
             min={transactionType === 'expense' ? minDate : undefined}
+            displayMode="modal"
           />
         </div>
 

@@ -11,17 +11,18 @@ interface AssetLiabilityModalProps {
     onClose: () => void;
     onSaveLiability: (name: string, details: string, amount: number, destinationMethodId: string, date: string, isInitial: boolean) => void;
     onSaveLoan: (name: string, amount: number, sourceMethodId: string, date: string, isInitial: boolean, details: string) => void;
-    onCreateSaving: (value: number, sourceMethodId: string, date: string, isInitial: boolean) => void;
+    onCreateSaving: (value: number, sourceMethodId: string, date: string) => void;
     config: {
         type: 'asset' | 'liability' | 'loan';
     };
     currency: string;
     bankAccounts: BankAccount[];
     balancesByMethod: Record<string, number>;
+    minDate?: string;
 }
 
 const AssetLiabilityModal: React.FC<AssetLiabilityModalProps> = ({
-    isOpen, onClose, onSaveLiability, onSaveLoan, onCreateSaving, config, currency, bankAccounts = [], balancesByMethod = {}
+    isOpen, onClose, onSaveLiability, onSaveLoan, onCreateSaving, config, currency, bankAccounts = [], balancesByMethod = {}, minDate
 }) => {
     const { type } = config;
     const [name, setName] = useState('');
@@ -55,6 +56,13 @@ const AssetLiabilityModal: React.FC<AssetLiabilityModalProps> = ({
             setError('');
         }
     }, [isOpen, isAsset, isLoan, isLiability, balancesByMethod, bankAccounts]);
+
+    useEffect(() => {
+        // This effect ensures the date is valid whenever minDate or the modal type changes.
+        if (isOpen && isAsset && minDate && date < minDate) {
+            setDate(minDate);
+        }
+    }, [isOpen, isAsset, minDate, date]);
 
     const sources = useMemo(() => [
         { id: CASH_METHOD_ID, name: 'Efectivo', balance: balancesByMethod[CASH_METHOD_ID] || 0, color: '#008f39' },
@@ -98,7 +106,7 @@ const AssetLiabilityModal: React.FC<AssetLiabilityModalProps> = ({
         }
 
         if (isAsset) {
-            onCreateSaving(numericAmount, isInitial ? '' : sourceMethodId, date, isInitial);
+            onCreateSaving(numericAmount, sourceMethodId, date);
         } else if (isLoan) {
             onSaveLoan(name, numericAmount, isInitial ? '' : sourceMethodId, date, isInitial, details);
         } else {
@@ -228,13 +236,15 @@ const AssetLiabilityModal: React.FC<AssetLiabilityModalProps> = ({
                                     value={date}
                                     onChange={setDate}
                                     themeColor={modalConfig.themeColor}
+                                    displayMode="modal"
+                                    min={minDate}
                                 />
                             </div>
                         </>
                     )}
 
                     {/* COMMON FIELDS for ASSET, LOAN */}
-                    {(isAsset || isLoan) && (
+                    {(isLoan) && (
                         <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400 pt-2">
                             <input
                                 type="checkbox"
@@ -249,7 +259,7 @@ const AssetLiabilityModal: React.FC<AssetLiabilityModalProps> = ({
                             </label>
                         </div>
                     )}
-                    {(isAsset || isLoan) && !isInitial && (
+                    {(isAsset || (isLoan && !isInitial)) && (
                         <div className="animate-fade-in">
                             <label htmlFor="source-method" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                 {isLiability ? "Depositar en" : "Origen de los fondos"}

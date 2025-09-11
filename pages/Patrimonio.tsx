@@ -23,6 +23,7 @@ interface PatrimonioProps {
     onDeleteLiability: (id: string) => void;
     onDeleteLoan: (id: string) => void;
     onNavigate: (page: Page) => void;
+    onOpenSpendSavingsModal: () => void;
 }
 
 const HistoryItem: React.FC<{
@@ -182,7 +183,7 @@ const Patrimonio: React.FC<PatrimonioProps> = ({
     profile, manualAssetsValue, totalLiabilities, totalLoans,
     assets, liabilities, loans, bankAccounts,
     onDeleteAsset, onDeleteLiability, onDeleteLoan,
-    onNavigate
+    onNavigate, onOpenSpendSavingsModal
 }) => {
     const { currency } = profile;
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
@@ -324,7 +325,12 @@ const Patrimonio: React.FC<PatrimonioProps> = ({
             </h1>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <SummaryCard title="Ahorros" amount={manualAssetsValue} colorClass="text-green-500" />
+                <SummaryCard 
+                    title="Ahorros" 
+                    amount={manualAssetsValue} 
+                    colorClass="text-green-500"
+                    onClick={manualAssetsValue > 0 ? () => onNavigate('ahorros') : undefined}
+                />
                 <SummaryCard 
                     title="Deudas" 
                     amount={totalLiabilities} 

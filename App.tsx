@@ -9,6 +9,7 @@ import Gastos from './pages/Gastos';
 import Patrimonio from './pages/Patrimonio';
 import Loans from './pages/Loans';
 import Deudas from './pages/Deudas';
+import Ahorros from './pages/Ahorros';
 import TransferModal from './components/TransferModal';
 import { validateTransactionChange, findFirstIncomeDate } from './utils/transactionUtils';
 import ProfileCreationModal from './components/ProfileCreationModal';
@@ -29,6 +30,7 @@ import AddValueToDebtModal from './components/AddValueToDebtModal';
 import EditDebtModal from './components/EditDebtModal';
 import DebtDetailModal from './components/DebtDetailModal';
 import EditDebtAdditionModal from './components/EditDebtAdditionModal';
+import SpendSavingsModal from './components/SpendSavingsModal';
 
 
 const CASH_METHOD_ID = 'efectivo';
@@ -250,6 +252,7 @@ const App: React.FC = () => {
                 loans: (p.data.loans || []).map((l: Loan) => ({
                     ...l,
                     originalAmount: (l as any).originalAmount || l.amount,
+                    details: l.details || '',
                     initialAdditions: (l.initialAdditions || []).map((add: any) => ({
                       ...add,
                       id: add.id || crypto.randomUUID(), // Add id if missing
@@ -322,6 +325,7 @@ const App: React.FC = () => {
   const [isProfileCreationModalOpen, setIsProfileCreationModalOpen] = useState(false);
   const [isFixedExpenseModalOpen, setIsFixedExpenseModalOpen] = useState(false);
   const [isAssetLiabilityModalOpen, setIsAssetLiabilityModalOpen] = useState(false);
+  const [isSpendSavingsModalOpen, setIsSpendSavingsModalOpen] = useState(false);
   const [payingDebt, setPayingDebt] = useState<Liability | null>(null);
   const [repayingLoan, setRepayingLoan] = useState<Loan | null>(null);
   const [addingValueToLoan, setAddingValueToLoan] = useState<Loan | null>(null);
@@ -626,18 +630,8 @@ const App: React.FC = () => {
     return { balance: totalBalance, balancesByMethod: balances };
   }, [activeProfile]);
 
-  const handleCreateSaving = useCallback((value: number, sourceMethodId: string, date: string, isInitial: boolean) => {
+  const handleCreateSaving = useCallback((value: number, sourceMethodId: string, date: string) => {
     if (!activeProfile) return;
-
-    if (isInitial) {
-        const newAsset: Asset = { id: crypto.randomUUID(), name: 'Ahorro', value, date, sourceMethodId: undefined };
-        updateActiveProfileData(data => ({
-            ...data,
-            assets: [...(data.assets || []), newAsset],
-        }));
-        setIsAssetLiabilityModalOpen(false);
-        return;
-    }
 
     const sourceBalance = balancesByMethod[sourceMethodId] || 0;
     if (value > sourceBalance) {
@@ -675,6 +669,84 @@ const App: React.FC = () => {
 
     setIsAssetLiabilityModalOpen(false);
   }, [activeProfile, balancesByMethod]);
+
+  const handleSpendFromSavings = useCallback((amountToSpend: number, description: string, date: string, categoryId: string | undefined, sourceMethodId: string) => {
+    if (!activeProfile) return;
+
+    const assetsFromSource = (activeProfile.data.assets || []).filter(a => a.sourceMethodId === sourceMethodId);
+    const totalSavingsFromSource = assetsFromSource.reduce((sum, asset) => sum + asset.value, 0);
+
+    if (amountToSpend > totalSavingsFromSource) {
+        alert("No puedes gastar más de lo que tienes ahorrado de esta fuente.");
+        return;
+    }
+
+    let remainingToSpend = amountToSpend;
+    const updatedAssetsFromSource: Asset[] = [];
+    
+    const sortedAssetsFromSource = [...assetsFromSource].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    for (const asset of sortedAssetsFromSource) {
+        if (remainingToSpend <= 0) {
+            updatedAssetsFromSource.push(asset);
+            continue;
+        }
+
+        if (asset.value > remainingToSpend) {
+            updatedAssetsFromSource.push({ ...asset, value: asset.value - remainingToSpend });
+            remainingToSpend = 0;
+        } else {
+            remainingToSpend -= asset.value;
+        }
+    }
+
+    const otherAssets = (activeProfile.data.assets || []).filter(a => a.sourceMethodId !== sourceMethodId);
+    const updatedAssets = [...otherAssets, ...updatedAssetsFromSource];
+
+    const withdrawalTransaction: Transaction = {
+        id: crypto.randomUUID(),
+        description: `Retiro de Ahorros: ${description}`,
+        amount: amountToSpend,
+        date: date,
+        type: 'income',
+        paymentMethodId: CASH_METHOD_ID,
+        patrimonioType: 'asset-spend',
+    };
+
+    let finalCategoryId = categoryId;
+    if (!finalCategoryId) {
+        const generalCategory = activeProfile.data.categories.find(c => c.name.toLowerCase() === 'general');
+        if (generalCategory) {
+            finalCategoryId = generalCategory.id;
+        }
+    }
+    
+    const expenseTransaction: Transaction = {
+        id: crypto.randomUUID(),
+        description: description,
+        amount: amountToSpend,
+        date: date,
+        type: 'expense',
+        paymentMethodId: CASH_METHOD_ID,
+        categoryId: finalCategoryId,
+    };
+    
+    const updatedTransactions = [expenseTransaction, withdrawalTransaction, ...activeProfile.data.transactions];
+    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
+
+    if (validationError) {
+        alert(validationError);
+        return;
+    }
+    
+    updateActiveProfileData(data => ({
+        ...data,
+        assets: updatedAssets,
+        transactions: updatedTransactions,
+    }));
+
+    setIsSpendSavingsModalOpen(false);
+  }, [activeProfile]);
 
   const handleSaveLiability = useCallback((name: string, details: string, amount: number, destinationMethodId: string, date: string, isInitial: boolean) => {
     if (!activeProfile) return;
@@ -1186,14 +1258,11 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
             totalIncome: 0, totalExpenses: 0
         };
     }
-    const { transactions, categories } = activeProfile.data;
+    const { transactions } = activeProfile.data;
     
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-
-    const ahorroCategoryId = categories.find(c => c.name.toLowerCase() === 'ahorro')?.id;
-    const prestamoCategoryId = categories.find(c => c.name.toLowerCase() === 'préstamos')?.id;
 
     let monthlyIncome = 0;
     let monthlyExpenses = 0;
@@ -1206,25 +1275,33 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
         const transactionDate = new Date(t.date);
         const isInCurrentMonth = transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
 
-        // Total calculation (includes everything)
+        // Define internal movements that should not be counted in summaries.
+        const isInternalExpense = t.transferId || t.patrimonioType === 'asset' || t.patrimonioType === 'loan' || t.patrimonioType === 'loan-addition';
+        const isInternalIncome = t.transferId || t.patrimonioType === 'liability' || t.patrimonioType === 'debt-addition' || t.patrimonioType === 'asset-spend';
+
+        // Total calculation
         if (t.type === 'income') {
-            totalIncome += t.amount;
+            if (!isInternalIncome) {
+                totalIncome += t.amount;
+            }
         } else { // expense
-            totalExpenses += t.amount;
+            if (!isInternalExpense) {
+                totalExpenses += t.amount;
+            }
         }
 
-        // Monthly Summary Calculation (exclude transfers, savings creations, loan creations)
-        if (t.transferId || t.patrimonioType === 'asset' || t.patrimonioType === 'loan' || t.patrimonioType === 'loan-addition') {
-            return;
-        }
-
+        // Monthly Summary Calculation
         if (isInCurrentMonth) {
             if (t.type === 'income') {
-                monthlyIncome += t.amount;
-                monthlyIncomeByMethod[t.paymentMethodId] = (monthlyIncomeByMethod[t.paymentMethodId] || 0) + t.amount;
+                if (!isInternalIncome) {
+                    monthlyIncome += t.amount;
+                    monthlyIncomeByMethod[t.paymentMethodId] = (monthlyIncomeByMethod[t.paymentMethodId] || 0) + t.amount;
+                }
             } else { // expense
-                monthlyExpenses += t.amount;
-                monthlyExpensesByMethod[t.paymentMethodId] = (monthlyExpensesByMethod[t.paymentMethodId] || 0) + t.amount;
+                if (!isInternalExpense) {
+                    monthlyExpenses += t.amount;
+                    monthlyExpensesByMethod[t.paymentMethodId] = (monthlyExpensesByMethod[t.paymentMethodId] || 0) + t.amount;
+                }
             }
         }
     });
@@ -1257,6 +1334,30 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
     const totalLiabilities = activeProfile.data.liabilities?.reduce((sum, liability) => sum + liability.amount, 0) || 0;
     const totalLoans = activeProfile.data.loans?.reduce((sum, loan) => sum + loan.amount, 0) || 0;
     return { manualAssetsValue, totalLiabilities, totalLoans };
+  }, [activeProfile]);
+
+  const savingsBySource = useMemo(() => {
+    if (!activeProfile) return {};
+    const result: Record<string, { total: number; name: string; color: string; }> = {};
+
+    (activeProfile.data.assets || []).forEach(asset => {
+        const sourceId = asset.sourceMethodId;
+        if (!sourceId) return; // Assets must have a source
+
+        if (!result[sourceId]) {
+            const sourceInfo = sourceId === CASH_METHOD_ID 
+                ? { name: 'Efectivo', color: '#008f39' }
+                : activeProfile.data.bankAccounts.find(b => b.id === sourceId);
+            
+            result[sourceId] = {
+                total: 0,
+                name: sourceInfo?.name || 'Fuente Desconocida',
+                color: sourceInfo?.color || '#64748b'
+            };
+        }
+        result[sourceId].total += asset.value;
+    });
+    return result;
   }, [activeProfile]);
   
   const handleExportData = useCallback(() => {
@@ -1369,6 +1470,7 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
                 loans: (p.data.loans || []).map((l: Loan) => ({
                     ...l,
                     originalAmount: (l as any).originalAmount || l.amount,
+                    details: l.details || '',
                     initialAdditions: (l.initialAdditions || []).map((add: any) => ({
                       ...add,
                       id: add.id || crypto.randomUUID()
@@ -1392,7 +1494,7 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
     reader.readAsText(file);
   }, []);
 
-  const minDateForExpenses = useMemo(() => {
+  const minDateForActions = useMemo(() => {
     if (!activeProfile) return undefined;
     const firstIncomeDate = findFirstIncomeDate(activeProfile.data.transactions);
     return firstIncomeDate ? firstIncomeDate.toISOString().split('T')[0] : undefined;
@@ -1524,7 +1626,7 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
                 onDeleteBankAccount={handleDeleteBankAccount}
                 onAddFixedExpense={handleAddFixedExpense}
                 onDeleteFixedExpense={handleDeleteFixedExpense}
-                minDateForExpenses={minDateForExpenses}
+                minDateForExpenses={minDateForActions}
                 onInitiateDeposit={() => handleInitiateTransfer('deposit')}
                 onInitiateWithdrawal={() => handleInitiateTransfer('withdrawal')}
               />
@@ -1543,6 +1645,17 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
                     onDeleteLiability={handleDeleteLiability}
                     onDeleteLoan={handleDeleteLoan}
                     onNavigate={handleNavigate}
+                    onOpenSpendSavingsModal={() => setIsSpendSavingsModalOpen(true)}
+                />
+            )}
+            {currentPage === 'ahorros' && (
+                <Ahorros
+                    profile={activeProfile}
+                    savingsBySource={savingsBySource}
+                    onNavigate={handleNavigate}
+                    onOpenSpendSavingsModal={() => setIsSpendSavingsModalOpen(true)}
+                    currency={activeProfile.currency}
+                    manualAssetsValue={manualAssetsValue}
                 />
             )}
             {currentPage === 'prestamos' && (
@@ -1668,6 +1781,18 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
         currency={activeProfile.currency}
         bankAccounts={activeProfile.data.bankAccounts}
         balancesByMethod={balancesByMethod}
+        minDate={minDateForActions}
+      />}
+      {activeProfile && <SpendSavingsModal
+        isOpen={isSpendSavingsModalOpen}
+        onClose={() => setIsSpendSavingsModalOpen(false)}
+        onSpend={handleSpendFromSavings}
+        savingsBySource={savingsBySource}
+        currency={activeProfile.currency}
+        categories={activeProfile.data.categories}
+        onAddCategory={handleAddCategory}
+        onUpdateCategory={handleUpdateCategory}
+        onDeleteCategory={handleDeleteCategory}
       />}
       {activeProfile && <DebtPaymentModal
         isOpen={!!payingDebt}

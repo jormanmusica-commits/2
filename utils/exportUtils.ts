@@ -124,25 +124,44 @@ export const exportProfileToCsv = (payload: ExportPayload): string => {
   // Section 10: Liabilities (Deudas)
   if (liabilities && liabilities.length > 0) {
     csvContent += 'Deudas (Pasivos)\r\n';
-    csvContent += toCsvRow(['Nombre', 'Monto Original', 'Monto Restante', 'Fecha']);
+    csvContent += toCsvRow(['Nombre', 'Detalles', 'Monto Original', 'Monto Restante', 'Fecha']);
     liabilities.forEach(liability => {
         csvContent += toCsvRow([
             liability.name,
+            liability.details || '',
             formatAmount(liability.originalAmount),
             formatAmount(liability.amount),
             liability.date
         ]);
     });
     csvContent += '\r\n\r\n';
+
+    const liabilitiesWithInitialAdditions = liabilities.filter(l => l.initialAdditions && l.initialAdditions.length > 0);
+    if (liabilitiesWithInitialAdditions.length > 0) {
+        csvContent += 'Ampliaciones Iniciales de Deudas\r\n';
+        csvContent += toCsvRow(['Nombre Deuda', 'Fecha', 'Monto', 'Detalles']);
+        liabilitiesWithInitialAdditions.forEach(liability => {
+            (liability.initialAdditions || []).forEach(addition => {
+                csvContent += toCsvRow([
+                    liability.name,
+                    addition.date,
+                    formatAmount(addition.amount),
+                    addition.details || ''
+                ]);
+            });
+        });
+        csvContent += '\r\n\r\n';
+    }
   }
 
   // Section 11: Loans (Préstamos a Terceros)
   if (loans && loans.length > 0) {
     csvContent += 'Prestamos a Terceros (Activos)\r\n';
-    csvContent += toCsvRow(['Nombre', 'Monto Original', 'Monto Restante', 'Fecha', 'Origen de Fondos']);
+    csvContent += toCsvRow(['Nombre', 'Detalles', 'Monto Original', 'Monto Restante', 'Fecha', 'Origen de Fondos']);
     loans.forEach(loan => {
         csvContent += toCsvRow([
             loan.name,
+            loan.details || '',
             formatAmount(loan.originalAmount),
             formatAmount(loan.amount),
             loan.date,
@@ -150,11 +169,28 @@ export const exportProfileToCsv = (payload: ExportPayload): string => {
         ]);
     });
     csvContent += '\r\n\r\n';
+
+    const loansWithInitialAdditions = loans.filter(l => l.initialAdditions && l.initialAdditions.length > 0);
+    if (loansWithInitialAdditions.length > 0) {
+        csvContent += 'Ampliaciones Iniciales de Prestamos\r\n';
+        csvContent += toCsvRow(['Nombre Prestamo', 'Fecha', 'Monto', 'Detalles']);
+        loansWithInitialAdditions.forEach(loan => {
+            (loan.initialAdditions || []).forEach(addition => {
+                csvContent += toCsvRow([
+                    loan.name,
+                    addition.date,
+                    formatAmount(addition.amount),
+                    addition.details || ''
+                ]);
+            });
+        });
+        csvContent += '\r\n\r\n';
+    }
   }
 
   // Section 12: Transactions
   csvContent += 'Transacciones\r\n';
-  csvContent += toCsvRow(['Fecha', 'Descripcion', 'Cantidad', 'Tipo', 'Metodo de Pago']);
+  csvContent += toCsvRow(['Fecha', 'Descripcion', 'Detalles', 'Cantidad', 'Tipo', 'Metodo de Pago']);
   const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   
   sortedTransactions.forEach(t => {
@@ -166,6 +202,7 @@ export const exportProfileToCsv = (payload: ExportPayload): string => {
     csvContent += toCsvRow([
       t.date,
       t.description,
+      t.details || '',
       formatAmount(amount),
       type,
       paymentMethodName,

@@ -15,7 +15,7 @@ export interface Transaction {
   transferId?: string;
   patrimonioId?: string;
   // FIX: Widened patrimonioType to include 'debt-payment' and 'loan-repayment' to resolve intersection type issues with HistoryItemType.
-  patrimonioType?: 'asset' | 'loan' | 'liability' | 'debt-payment' | 'loan-repayment' | 'loan-addition' | 'debt-addition';
+  patrimonioType?: 'asset' | 'loan' | 'liability' | 'debt-payment' | 'loan-repayment' | 'loan-addition' | 'debt-addition' | 'asset-spend';
   loanId?: string;
   liabilityId?: string;
   details?: string;
@@ -89,7 +89,7 @@ export enum Theme {
   DARK = 'dark',
 }
 
-export type Page = 'inicio' | 'resumen' | 'ajustes' | 'ingresos' | 'gastos' | 'patrimonio' | 'prestamos' | 'deudas';
+export type Page = 'inicio' | 'resumen' | 'ajustes' | 'ingresos' | 'gastos' | 'patrimonio' | 'prestamos' | 'deudas' | 'ahorros';
 
 export type TransactionTypeFilter = 'income' | 'expense' | 'transfer' | 'saving' | 'loan';
 export type PaymentMethodFilter = 'cash' | 'bank';
@@ -105,7 +105,7 @@ export interface Filters {
 
 export interface PatrimonioFilters {
   // FIX: Widened the `types` array to include all possible values from `HistoryItemType['patrimonioType']` to fix cascading type errors.
-  types: ('asset' | 'loan' | 'liability' | 'debt-payment' | 'loan-repayment' | 'loan-addition' | 'debt-addition')[];
+  types: ('asset' | 'loan' | 'liability' | 'debt-payment' | 'loan-repayment' | 'loan-addition' | 'debt-addition' | 'asset-spend')[];
   sources: string[];
 }
 
