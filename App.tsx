@@ -1411,8 +1411,13 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
   
       const jsonString = JSON.stringify(allData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
-      const dateStr = new Date().toISOString().split('T')[0];
-      const fileName = `CONTROL_${dateStr}.json`;
+      
+      const now = new Date();
+      const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+      const month = months[now.getMonth()];
+      const day = String(now.getDate()).padStart(2, '0');
+      const year = String(now.getFullYear()).slice(-2);
+      const fileName = `CONTROL-${month}-${day}-${year}.json`;
 
       // Use the Web Share API if available (for mobile devices like iOS)
       if (navigator.share) {
