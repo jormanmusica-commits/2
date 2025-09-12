@@ -1401,7 +1401,7 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
     }
   }, [activeProfile, balance, balancesByMethod, summaryData]);
 
-  const handleExportAllDataToJson = useCallback(() => {
+  const handleExportAllDataToJson = useCallback(async () => {
     try {
       const allData = {
         profiles: profiles,
@@ -1409,20 +1409,44 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
         theme: theme,
       };
   
-      const jsonString = JSON.stringify(allData, null, 2); // Pretty print for readability
+      const jsonString = JSON.stringify(allData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+      const dateStr = new Date().toISOString().split('T')[0];
+      const fileName = `income_tracker_backup_${dateStr}.json`;
+
+      // Use the Web Share API if available (for mobile devices like iOS)
+      if (navigator.share) {
+        const file = new File([blob], fileName, { type: 'application/json' });
+        try {
+          await navigator.share({
+            files: [file],
+            title: 'Copia de Seguridad de Ingresos',
+            text: 'Aquí está tu copia de seguridad de datos.',
+          });
+          return; // Exit after successful share
+        } catch (error) {
+          // This error is thrown if the user cancels the share dialog.
+          // We don't need to show an error message, just prevent fallback.
+          if ((error as DOMException).name === 'AbortError') {
+            return;
+          }
+          console.error("Error al usar la API de compartir:", error);
+          // If sharing fails for another reason, we can proceed to the fallback.
+        }
+      }
+      
+      // Fallback for browsers without Share API (Desktop, etc.)
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      
-      const dateStr = new Date().toISOString().split('T')[0];
-      link.setAttribute("download", `income_tracker_backup_${dateStr}.json`);
+      link.setAttribute("download", fileName);
       
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
     } catch (error) {
       console.error("Error al exportar los datos a JSON:", error);
       alert("Ocurrió un error al intentar exportar los datos. Por favor, inténtalo de nuevo.");
