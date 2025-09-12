@@ -1412,7 +1412,7 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
       const jsonString = JSON.stringify(allData, null, 2);
       const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
       const dateStr = new Date().toISOString().split('T')[0];
-      const fileName = `income_tracker_backup_${dateStr}.json`;
+      const fileName = `CONTROL_${dateStr}.json`;
 
       // Use the Web Share API if available (for mobile devices like iOS)
       if (navigator.share) {
@@ -1421,7 +1421,6 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
           await navigator.share({
             files: [file],
             title: 'Copia de Seguridad de Ingresos',
-            text: 'Aquí está tu copia de seguridad de datos.',
           });
           return; // Exit after successful share
         } catch (error) {
