@@ -13,7 +13,7 @@ import CustomDatePicker from './CustomDatePicker';
 
 interface TransactionFormProps {
   transactionType: 'income' | 'expense';
-  onAddTransaction: (description: string, amount: number, date: string, categoryId?: string) => void;
+  onAddTransaction: (description: string, amount: number, date: string, categoryId?: string, addAsFixed?: boolean) => void;
   currency: string;
   categories?: Category[];
   selectedCategoryId?: string;
@@ -43,6 +43,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 }) => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [addAsFixed, setAddAsFixed] = useState(false);
   
   const getInitialDate = () => {
     const today = new Date().toISOString().split('T')[0];
@@ -88,7 +89,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
       // return;
     }
 
-    onAddTransaction(description, numericAmount, date, currentCategoryId);
+    onAddTransaction(description, numericAmount, date, currentCategoryId, addAsFixed);
   };
 
   const handleAmountSubmitted = () => {
@@ -155,6 +156,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
         </div>
 
         {!isIncome && (
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Categoría
@@ -176,6 +178,20 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
                 )}
               </button>
             </div>
+             <div className="flex items-center space-x-2">
+                <input
+                    type="checkbox"
+                    id="add-as-fixed-expense"
+                    checked={addAsFixed}
+                    onChange={(e) => setAddAsFixed(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    style={{ accentColor: '#ef4444' }}
+                />
+                <label htmlFor="add-as-fixed-expense" className="text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+                    Añadir como Gasto Fijo
+                </label>
+            </div>
+          </div>
         )}
 
       </div>

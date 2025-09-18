@@ -9,6 +9,7 @@ import BankSelectionModal from '../components/BankSelectionModal';
 import BankIcon from '../components/icons/BankIcon';
 import FixedExpenseModal from '../components/FixedExpenseModal';
 import BoltIcon from '../components/icons/BoltIcon';
+import PayFixedExpenseModal from '../components/PayFixedExpenseModal';
 
 const CASH_METHOD_ID = 'efectivo';
 
@@ -29,6 +30,7 @@ interface GastosProps {
   minDateForExpenses?: string;
   onInitiateDeposit: () => void;
   onInitiateWithdrawal: () => void;
+  onOpenGiftModal: (expense: FixedExpense) => void;
 }
 
 const Gastos: React.FC<GastosProps> = ({ 
@@ -37,9 +39,9 @@ const Gastos: React.FC<GastosProps> = ({
     onAddBankAccount, onUpdateBankAccount, onDeleteBankAccount,
     onAddFixedExpense, onDeleteFixedExpense,
     minDateForExpenses,
-    onInitiateDeposit, onInitiateWithdrawal
+    onInitiateDeposit, onInitiateWithdrawal,
+    onOpenGiftModal
 }) => {
-    // FIX: Destructure categories, bankAccounts, and fixedExpenses from profile.data
     const { data: { categories, bankAccounts, fixedExpenses, transactions }, currency } = profile;
     const [activeMethodId, setActiveMethodId] = useState<string | null>(null);
     const [isFormVisible, setIsFormVisible] = useState(false);
@@ -48,7 +50,7 @@ const Gastos: React.FC<GastosProps> = ({
     const [isBankSelectionModalOpen, setIsBankSelectionModalOpen] = useState(false);
     const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
     const [isFixedExpenseModalOpen, setIsFixedExpenseModalOpen] = useState(false);
-    const [pendingFixedExpense, setPendingFixedExpense] = useState<FixedExpense | null>(null);
+    const [expenseToPay, setExpenseToPay] = useState<FixedExpense | null>(null);
     const formContainerRef = useRef<HTMLDivElement>(null);
 
     const bankBalance = Object.entries(balancesByMethod)
@@ -58,27 +60,10 @@ const Gastos: React.FC<GastosProps> = ({
 
     const isBankDisabled = bankBalance <= 0;
     const isCashDisabled = cashBalance <= 0;
-    
-    const handleAddPendingFixedExpense = (paymentMethodId: string) => {
-        if (!pendingFixedExpense) return;
-        onAddTransaction(
-            pendingFixedExpense.name,
-            pendingFixedExpense.amount,
-            new Date().toISOString().split('T')[0],
-            'expense',
-            paymentMethodId,
-            pendingFixedExpense.categoryId
-        );
-        setPendingFixedExpense(null);
-    };
 
     const handleSelectMethod = (id: string) => {
-        if (pendingFixedExpense) {
-            handleAddPendingFixedExpense(id);
-        } else {
-            setActiveMethodId(id);
-            setIsFormVisible(true);
-        }
+        setActiveMethodId(id);
+        setIsFormVisible(true);
     };
 
     const getButtonClass = (isActive: boolean, disabled = false) => {
@@ -101,9 +86,12 @@ const Gastos: React.FC<GastosProps> = ({
       handleSelectMethod(bankId);
     };
 
-    const handleFormSubmit = (description: string, amount: number, date: string, categoryId?: string) => {
+    const handleFormSubmit = (description: string, amount: number, date: string, categoryId?: string, addAsFixed?: boolean) => {
         if (activeMethodId) {
           onAddTransaction(description, amount, date, 'expense', activeMethodId, categoryId);
+          if (addAsFixed) {
+            onAddFixedExpense(description, amount, categoryId);
+          }
           setIsFormVisible(false);
         }
     };
@@ -121,8 +109,25 @@ const Gastos: React.FC<GastosProps> = ({
     };
 
     const handleSelectFixedExpense = (expense: FixedExpense) => {
-        setPendingFixedExpense(expense);
         setIsFixedExpenseModalOpen(false);
+        setExpenseToPay(expense);
+    };
+
+    const handleConfirmPayment = (expense: FixedExpense, date: string, paymentMethodId: string) => {
+        onAddTransaction(
+            expense.name,
+            expense.amount,
+            date,
+            'expense',
+            paymentMethodId,
+            expense.categoryId
+        );
+        setExpenseToPay(null);
+    };
+
+    const handleOpenGiftModal = (expense: FixedExpense) => {
+        setIsFixedExpenseModalOpen(false);
+        onOpenGiftModal(expense);
     };
 
     return (
@@ -162,13 +167,8 @@ const Gastos: React.FC<GastosProps> = ({
                     </button>
                   </div>
                   <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">
-                    {pendingFixedExpense ? '2. Selecciona un método de pago' : 'O selecciona un método para un nuevo gasto'}
+                    O selecciona un método para un nuevo gasto
                   </h3>
-                   {pendingFixedExpense && (
-                    <div className="mb-4 p-3 bg-blue-500/10 text-blue-700 dark:text-blue-300 rounded-lg text-center text-sm font-medium animate-fade-in">
-                      Añadiendo: <strong>{pendingFixedExpense.name}</strong>
-                    </div>
-                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <button
                       onClick={() => setIsBankSelectionModalOpen(true)}
@@ -243,18 +243,25 @@ const Gastos: React.FC<GastosProps> = ({
           currency={currency}
         />
         <FixedExpenseModal
+          mode="select"
           isOpen={isFixedExpenseModalOpen}
           onClose={() => setIsFixedExpenseModalOpen(false)}
           fixedExpenses={fixedExpenses}
           transactions={transactions}
           categories={categories}
-          onAddFixedExpense={onAddFixedExpense}
-          onDeleteFixedExpense={onDeleteFixedExpense}
           onSelectFixedExpense={handleSelectFixedExpense}
           currency={currency}
-          onAddCategory={onAddCategory}
-          onUpdateCategory={onUpdateCategory}
-          onDeleteCategory={onDeleteCategory}
+          onOpenGiftModal={handleOpenGiftModal}
+        />
+        <PayFixedExpenseModal
+            isOpen={!!expenseToPay}
+            onClose={() => setExpenseToPay(null)}
+            expense={expenseToPay}
+            bankAccounts={bankAccounts}
+            balancesByMethod={balancesByMethod}
+            onConfirm={handleConfirmPayment}
+            currency={currency}
+            minDateForExpenses={minDateForExpenses}
         />
       </>
     );

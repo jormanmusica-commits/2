@@ -89,7 +89,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
 
         <div className="p-4 space-y-2 overflow-y-auto">
           {categories.map(cat => (
-            <div key={cat.id} className="group flex items-center justify-between p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800/50">
+            <div key={cat.id} className="flex items-center justify-between p-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-800/50">
               {editingCategory?.id === cat.id ? (
                 <div className="flex-grow flex items-center space-x-2">
                   <input
@@ -106,6 +106,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
               ) : (
                 <button 
                   onClick={() => onSelectCategory && onSelectCategory(cat)}
+                  onMouseDown={(e) => e.preventDefault()}
                   className="flex-grow flex items-center space-x-4 text-left p-2"
                   disabled={!onSelectCategory}
                 >
@@ -117,10 +118,10 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
               )}
               
               <div className="flex items-center space-x-1">
-                <button onClick={() => setEditingCategory({ id: cat.id, name: cat.name })} className="p-2 text-gray-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-all">
+                <button onClick={() => setEditingCategory({ id: cat.id, name: cat.name })} className="p-2 text-gray-400 hover:text-blue-500 transition-colors">
                   <EditIcon className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleDelete(cat.id)} className="p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all">
+                <button onClick={() => handleDelete(cat.id)} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
                   <TrashIcon className="w-5 h-5" />
                 </button>
               </div>

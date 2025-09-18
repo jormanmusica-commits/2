@@ -19,6 +19,7 @@ export interface Transaction {
   loanId?: string;
   liabilityId?: string;
   details?: string;
+  isGift?: boolean;
 }
 
 export interface Category {
@@ -91,10 +92,11 @@ export enum Theme {
 
 export type Page = 'inicio' | 'resumen' | 'ajustes' | 'ingresos' | 'gastos' | 'patrimonio' | 'prestamos' | 'deudas' | 'ahorros';
 
-export type TransactionTypeFilter = 'income' | 'expense' | 'transfer' | 'saving' | 'loan';
+export type TransactionTypeFilter = 'income' | 'expense' | 'transfer' | 'saving' | 'loan' | 'gift';
 export type PaymentMethodFilter = 'cash' | 'bank';
 
 export interface Filters {
+  searchTerm: string;
   startDate: string;
   endDate: string;
   types: TransactionTypeFilter[];

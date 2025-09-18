@@ -7,6 +7,7 @@ import ExportIcon from '../components/icons/ExportIcon';
 import ArchiveIcon from '../components/icons/ArchiveIcon';
 import ImportIcon from '../components/icons/ImportIcon';
 import WarningIcon from '../components/icons/WarningIcon';
+import FixedExpenseModal from '../components/FixedExpenseModal';
 
 interface AjustesProps {
   theme: Theme;

@@ -12,6 +12,7 @@ import SwitchIcon from './icons/SwitchIcon';
 import ArrowUpIcon from './icons/ArrowUpIcon';
 import ArrowDownIcon from './icons/ArrowDownIcon';
 import ScaleIcon from './icons/ScaleIcon';
+import GiftIcon from './icons/GiftIcon';
 
 const CASH_METHOD_ID = 'efectivo';
 
@@ -48,6 +49,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
   const isIncome = transaction.type === 'income';
   const isTransfer = !!transaction.transferId;
   const isSaving = !isIncome && !isTransfer && category?.name.toLowerCase() === 'ahorro';
+  const isGift = transaction.isGift;
 
   const locale = currency === 'COP' ? 'es-CO' : (currency === 'CLP' ? 'es-CL' : 'es-ES');
   const formattedAmount = new Intl.NumberFormat(locale, {
@@ -111,7 +113,11 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
       role="button"
     >
       <div className="flex items-center space-x-4 min-w-0 flex-grow">
-        {isTransfer ? (
+        {isGift ? (
+          <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-teal-500/10 border-2 border-teal-500/50">
+            <GiftIcon className="w-5 h-5 text-teal-500" />
+          </div>
+        ) : isTransfer ? (
           <div className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center bg-[#3b82f6]/10 border-2 border-[#3b82f6]/50">
             <SwitchIcon className="w-5 h-5 text-[#3b82f6]" />
           </div>
@@ -124,10 +130,12 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
             <CategoryIcon iconName={category.icon} color={category.color} />
           </div>
         ) : null}
-        <div className={`min-w-0 flex-grow ${!category && !isTransfer && !isIncome ? 'ml-14' : ''}`}>
+        <div className={`min-w-0 flex-grow ${!category && !isTransfer && !isIncome && !isGift ? 'ml-14' : ''}`}>
           <p className="font-semibold text-gray-800 dark:text-gray-100 truncate">{transaction.description}</p>
           <div className="flex items-center space-x-2 text-sm text-gray-500 dark:text-gray-400">
-            {isTransfer ? (
+            {isGift ? (
+              <span className="text-teal-500 font-medium">Recibido como Regalo</span>
+            ) : isTransfer ? (
               <span className="text-[#3b82f6] dark:text-[#3b82f6] font-medium">Transferencia</span>
             ) : (
               <>
@@ -147,7 +155,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({
       </div>
       <div className="flex items-center space-x-2">
         <div className="text-right">
-            <p className={`font-bold ${amountColor} text-lg whitespace-nowrap`}>{sign}{formattedAmount}</p>
+            <p className={`font-bold ${isGift ? 'text-teal-500' : amountColor} text-lg whitespace-nowrap`}>{isGift ? formattedAmount : `${sign}${formattedAmount}`}</p>
           <p className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{formattedDate}</p>
         </div>
         

@@ -14,6 +14,7 @@ import HealthIcon from './icons/HealthIcon';
 import TagIcon from './icons/TagIcon';
 import ArrowDownIcon from './icons/ArrowDownIcon';
 import CheckIcon from './icons/CheckIcon';
+import GiftIcon from './icons/GiftIcon';
 
 interface FixedExpenseModalProps {
   isOpen: boolean;
@@ -21,13 +22,15 @@ interface FixedExpenseModalProps {
   fixedExpenses: FixedExpense[];
   transactions: Transaction[];
   categories: Category[];
-  onAddFixedExpense: (name: string, amount: number, categoryId?: string) => void;
-  onDeleteFixedExpense: (id: string) => void;
+  onAddFixedExpense?: (name: string, amount: number, categoryId?: string) => void;
+  onDeleteFixedExpense?: (id: string) => void;
   onSelectFixedExpense?: (expense: FixedExpense) => void;
   currency: string;
-  onAddCategory: (name: string) => void;
-  onUpdateCategory: (id: string, name: string) => void;
-  onDeleteCategory: (id: string) => void;
+  onAddCategory?: (name: string) => void;
+  onUpdateCategory?: (id: string, name: string) => void;
+  onDeleteCategory?: (id: string) => void;
+  onOpenGiftModal?: (expense: FixedExpense) => void;
+  mode?: 'manage' | 'select';
 }
 
 const CategoryIcon: React.FC<{ iconName: string; color: string; }> = ({ iconName, color }) => {
@@ -48,7 +51,7 @@ const CategoryIcon: React.FC<{ iconName: string; color: string; }> = ({ iconName
 
 const FixedExpenseModal: React.FC<FixedExpenseModalProps> = ({ 
     isOpen, onClose, fixedExpenses, transactions, categories, onAddFixedExpense, onDeleteFixedExpense, onSelectFixedExpense, currency,
-    onAddCategory, onUpdateCategory, onDeleteCategory
+    onAddCategory, onUpdateCategory, onDeleteCategory, onOpenGiftModal, mode = 'manage'
 }) => {
   const [newExpense, setNewExpense] = useState({ name: '', amount: '', categoryId: '' });
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -94,6 +97,7 @@ const FixedExpenseModal: React.FC<FixedExpenseModalProps> = ({
   if (!isOpen) return null;
 
   const handleAdd = () => {
+    if (!onAddFixedExpense) return;
     const sanitizedAmount = newExpense.amount.replace(',', '.');
     const numericAmount = parseFloat(sanitizedAmount);
     if (newExpense.name.trim() && !isNaN(numericAmount) && numericAmount > 0) {
@@ -104,7 +108,7 @@ const FixedExpenseModal: React.FC<FixedExpenseModalProps> = ({
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation(); // Prevent selection when deleting
-    if (window.confirm('¿Estás seguro de que quieres eliminar este gasto fijo?')) {
+    if (onDeleteFixedExpense && window.confirm('¿Estás seguro de que quieres eliminar este gasto fijo?')) {
       onDeleteFixedExpense(id);
     }
   };
@@ -168,8 +172,8 @@ const FixedExpenseModal: React.FC<FixedExpenseModalProps> = ({
                 );
 
                 return (
-                  <div key={exp.id} className="group flex items-center justify-between rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors">
-                    {onSelectFixedExpense ? (
+                  <div key={exp.id} className="flex items-center justify-between rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors">
+                    {mode === 'select' && onSelectFixedExpense ? (
                       <button
                         onClick={() => onSelectFixedExpense(exp)}
                         disabled={isPaid}
@@ -182,77 +186,95 @@ const FixedExpenseModal: React.FC<FixedExpenseModalProps> = ({
                         {itemContent}
                       </div>
                     )}
-                    <button 
-                      onClick={(e) => handleDelete(e, exp.id)} 
-                      className="p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all ml-2"
-                      aria-label={`Eliminar ${exp.name}`}
-                    >
-                      <TrashIcon className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center">
+                      {mode === 'select' && !isPaid && onOpenGiftModal && (
+                          <button
+                              onClick={(e) => { e.stopPropagation(); onOpenGiftModal(exp); }}
+                              className="p-2 text-gray-400 hover:text-teal-500 transition-colors"
+                              aria-label={`Marcar ${exp.name} como regalo`}
+                              title="Marcar como regalo"
+                          >
+                              <GiftIcon className="w-5 h-5" />
+                          </button>
+                      )}
+                      {mode === 'manage' && (
+                        <button 
+                          onClick={(e) => handleDelete(e, exp.id)} 
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          aria-label={`Eliminar ${exp.name}`}
+                        >
+                          <TrashIcon className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })
             )}
           </div>
 
-          <footer className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
-            <div className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input
-                  type="text"
-                  value={newExpense.name}
-                  onChange={(e) => setNewExpense({...newExpense, name: e.target.value})}
-                  placeholder="Nombre (ej. Alquiler)"
-                  className="sm:col-span-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-[#008f39] focus:border-[#008f39] bg-gray-50 dark:bg-gray-700"
-                />
-                <input
-                  type="text"
-                  value={newExpense.amount}
-                  onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
-                  placeholder="Monto"
-                  pattern="[0-9]+([,\.][0-9]{1,2})?"
-                  inputMode="decimal"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-[#008f39] focus:border-[#008f39] bg-gray-50 dark:bg-gray-700"
-                />
-              </div>
-              <div>
+          {mode === 'manage' && (
+            <footer className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={newExpense.name}
+                    onChange={(e) => setNewExpense({...newExpense, name: e.target.value})}
+                    placeholder="Nombre (ej. Alquiler)"
+                    className="sm:col-span-2 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-[#008f39] focus:border-[#008f39] bg-gray-50 dark:bg-gray-700"
+                  />
+                  <input
+                    type="text"
+                    value={newExpense.amount}
+                    onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+                    placeholder="Monto"
+                    pattern="[0-9]+([,\.][0-9]{1,2})?"
+                    inputMode="decimal"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-[#008f39] focus:border-[#008f39] bg-gray-50 dark:bg-gray-700"
+                  />
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCategoryModalOpen(true)}
+                    className="w-full flex items-center text-left px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  >
+                    {selectedCategory ? (
+                        <span className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center`} style={{ backgroundColor: `${selectedCategory.color}20`}}>
+                                <CategoryIcon iconName={selectedCategory.icon} color={selectedCategory.color} />
+                            </div>
+                            <span>{selectedCategory.name}</span>
+                        </span>
+                    ) : (
+                        <span className="text-gray-400">Seleccionar categoría (opcional)</span>
+                    )}
+                  </button>
+                </div>
                 <button
-                  type="button"
-                  onClick={() => setIsCategoryModalOpen(true)}
-                  className="w-full flex items-center text-left px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  onClick={handleAdd}
+                  aria-label="Añadir nuevo gasto fijo"
+                  className="w-full flex items-center justify-center gap-2 bg-[#008f39] text-white font-bold py-2 px-4 rounded-md hover:bg-[#007a33] focus:outline-none focus:ring-2 focus:ring-[#008f39] focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors"
                 >
-                  {selectedCategory ? (
-                      <span className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center`} style={{ backgroundColor: `${selectedCategory.color}20`}}>
-                              <CategoryIcon iconName={selectedCategory.icon} color={selectedCategory.color} />
-                          </div>
-                          <span>{selectedCategory.name}</span>
-                      </span>
-                  ) : (
-                      <span className="text-gray-400">Seleccionar categoría (opcional)</span>
-                  )}
+                  <PlusIcon className="w-5 h-5" /> Añadir Gasto Fijo
                 </button>
               </div>
-              <button
-                onClick={handleAdd}
-                aria-label="Añadir nuevo gasto fijo"
-                className="w-full flex items-center justify-center gap-2 bg-[#008f39] text-white font-bold py-2 px-4 rounded-md hover:bg-[#007a33] focus:outline-none focus:ring-2 focus:ring-[#008f39] focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors"
-              >
-                <PlusIcon className="w-5 h-5" /> Añadir Gasto Fijo
-              </button>
-            </div>
-          </footer>
+            </footer>
+          )}
         </div>
       </div>
-      <CategoryModal
-        isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        categories={categories}
-        onSelectCategory={handleSelectCategory}
-        onAddCategory={onAddCategory}
-        onUpdateCategory={onUpdateCategory}
-        onDeleteCategory={onDeleteCategory}
-      />
+      {onAddCategory && onUpdateCategory && onDeleteCategory && (
+        <CategoryModal
+          isOpen={isCategoryModalOpen}
+          onClose={() => setIsCategoryModalOpen(false)}
+          categories={categories}
+          onSelectCategory={handleSelectCategory}
+          onAddCategory={onAddCategory}
+          onUpdateCategory={onUpdateCategory}
+          onDeleteCategory={onDeleteCategory}
+        />
+      )}
     </>
   );
 };

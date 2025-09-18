@@ -31,6 +31,7 @@ import EditDebtModal from './components/EditDebtModal';
 import DebtDetailModal from './components/DebtDetailModal';
 import EditDebtAdditionModal from './components/EditDebtAdditionModal';
 import SpendSavingsModal from './components/SpendSavingsModal';
+import GiftFixedExpenseModal from './components/GiftFixedExpenseModal';
 
 
 const CASH_METHOD_ID = 'efectivo';
@@ -298,14 +299,7 @@ const App: React.FC = () => {
         currency: 'COP',
         data: createDefaultProfileData()
     };
-    const defaultProfileChile: Profile = {
-        id: crypto.randomUUID(),
-        name: 'Chile',
-        countryCode: 'CL',
-        currency: 'CLP',
-        data: createDefaultProfileData()
-    };
-    return [defaultProfileSpain, defaultProfileColombia, defaultProfileChile];
+    return [defaultProfileSpain, defaultProfileColombia];
   });
   
   const [activeProfileId, setActiveProfileId] = useState<string | null>(() => {
@@ -334,6 +328,7 @@ const App: React.FC = () => {
   type LoanAddition = { id: string; amount: number; date: string; details?: string };
   const [editingLoanAddition, setEditingLoanAddition] = useState<{ loan: Loan, addition: LoanAddition } | null>(null);
   const [modalConfig, setModalConfig] = useState<{ type: 'asset' | 'liability' | 'loan' } | null>(null);
+  const [giftingFixedExpense, setGiftingFixedExpense] = useState<FixedExpense | null>(null);
 
   // New state for debt modals
   const [addingValueToDebt, setAddingValueToDebt] = useState<Liability | null>(null);
@@ -611,6 +606,30 @@ const App: React.FC = () => {
     updateActiveProfileData(data => ({ ...data, fixedExpenses: data.fixedExpenses.filter(expense => expense.id !== id) }));
   }, []);
 
+  const handleConfirmFixedExpenseAsGift = useCallback((expenseId: string, date: string, description: string) => {
+    if (!activeProfile) return;
+
+    const expense = activeProfile.data.fixedExpenses.find(e => e.id === expenseId);
+    if (!expense) return;
+
+    const newTransaction: Transaction = {
+      id: crypto.randomUUID(),
+      description: description,
+      amount: expense.amount,
+      date: date,
+      type: 'expense',
+      paymentMethodId: 'gift', // This will be ignored by balance calculations
+      categoryId: expense.categoryId,
+      isGift: true,
+    };
+
+    const updatedTransactions = [newTransaction, ...activeProfile.data.transactions];
+    
+    // No validation needed as gift transactions don't affect balance.
+    updateActiveProfileData(data => ({ ...data, transactions: updatedTransactions }));
+    setGiftingFixedExpense(null); // Close modal
+  }, [activeProfile]);
+
   // FIX: Moved useMemo for balances before its use in handleCreateSaving
   const { balance, balancesByMethod } = useMemo(() => {
     if (!activeProfile) return { balance: 0, balancesByMethod: {} };
@@ -623,6 +642,7 @@ const App: React.FC = () => {
     const sortedTransactions = [...activeProfile.data.transactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     for (const t of sortedTransactions) {
+      if (t.isGift) continue;
       const amount = t.type === 'income' ? t.amount : -t.amount;
       balances[t.paymentMethodId] = (balances[t.paymentMethodId] || 0) + amount;
     }
@@ -1272,6 +1292,8 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
     let totalExpenses = 0;
 
     transactions.forEach(t => {
+        if (t.isGift) return;
+
         const transactionDate = new Date(t.date);
         const isInCurrentMonth = transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
 
@@ -1657,6 +1679,7 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
                 minDateForExpenses={minDateForActions}
                 onInitiateDeposit={() => handleInitiateTransfer('deposit')}
                 onInitiateWithdrawal={() => handleInitiateTransfer('withdrawal')}
+                onOpenGiftModal={setGiftingFixedExpense}
               />
             )}
             {currentPage === 'patrimonio' && (
@@ -1904,6 +1927,14 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
           data={editingDebtAddition}
           onUpdate={handleUpdateDebtAddition}
           currency={activeProfile.currency}
+      />}
+      {activeProfile && <GiftFixedExpenseModal
+        isOpen={!!giftingFixedExpense}
+        onClose={() => setGiftingFixedExpense(null)}
+        expense={giftingFixedExpense}
+        onConfirm={handleConfirmFixedExpenseAsGift}
+        currency={activeProfile.currency}
+        minDateForExpenses={minDateForActions}
       />}
     </div>
   );

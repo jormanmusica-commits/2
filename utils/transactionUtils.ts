@@ -1,4 +1,4 @@
-import { Transaction, BankAccount } from './types';
+import { Transaction, BankAccount } from '../types';
 
 const CASH_METHOD_ID = 'efectivo';
 
@@ -36,6 +36,8 @@ export const validateTransactionChange = (updatedTransactions: Transaction[], ba
   let currentBalances = { ...initialBalances };
 
   for (const t of sorted) {
+    if (t.isGift) continue;
+    
     const amount = t.type === 'income' ? t.amount : -t.amount;
     const newBalanceForMethod = (currentBalances[t.paymentMethodId] || 0) + amount;
     

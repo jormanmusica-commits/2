@@ -21,6 +21,7 @@ interface FilterPanelProps {
 }
 
 const defaultFilters: Filters = {
+  searchTerm: '',
   startDate: '',
   endDate: '',
   types: [],
@@ -106,6 +107,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, onApply, cur
     { value: 'transfer', label: 'Transferencias' },
     { value: 'saving', label: 'Ahorros' },
     { value: 'loan', label: 'Préstamos' },
+    { value: 'gift', label: 'Regalos' },
   ];
 
   const methodOptions: { value: PaymentMethodFilter, label: string }[] = [
@@ -137,6 +139,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, onApply, cur
         </header>
 
         <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+          
+          <section aria-labelledby="search-heading">
+              <input
+                  type="text"
+                  placeholder="Buscar por descripción..."
+                  value={localFilters.searchTerm}
+                  onChange={e => setLocalFilters(f => ({...f, searchTerm: e.target.value}))}
+                  className="input-style w-full"
+                  aria-label="Término de búsqueda"
+              />
+          </section>
+
+          <hr className="border-gray-200 dark:border-gray-700/50" />
           
           <section aria-labelledby="date-range-heading">
             <h3 id="date-range-heading" className="font-semibold text-gray-700 dark:text-gray-300 mb-2">Rango de Fechas</h3>

@@ -47,8 +47,8 @@ const Resumen: React.FC<ResumenProps> = ({
   }, [categories]);
   
   const handleApplyFilters = (newFilters: Filters) => {
-    const { startDate, endDate, types, methods, bankAccounts, categories } = newFilters;
-    const isFilterActive = !!startDate || !!endDate || types.length > 0 || methods.length > 0 || bankAccounts.length > 0 || categories.length > 0;
+    const { searchTerm, startDate, endDate, types, methods, bankAccounts, categories } = newFilters;
+    const isFilterActive = !!searchTerm || !!startDate || !!endDate || types.length > 0 || methods.length > 0 || bankAccounts.length > 0 || categories.length > 0;
     setActiveFilters(isFilterActive ? newFilters : null);
     setIsFilterPanelOpen(false);
   };
@@ -56,19 +56,25 @@ const Resumen: React.FC<ResumenProps> = ({
   const filteredTransactions = useMemo(() => {
     if (!activeFilters) return transactions;
 
-    const { startDate, endDate, types, methods, bankAccounts: filteredBankAccounts, categories: filteredCategories } = activeFilters;
+    const { searchTerm, startDate, endDate, types, methods, bankAccounts: filteredBankAccounts, categories: filteredCategories } = activeFilters;
     
     const start = startDate ? new Date(startDate) : null;
     if (start) start.setUTCHours(0,0,0,0);
     const end = endDate ? new Date(endDate) : null;
     if (end) end.setUTCHours(23,59,59,999);
 
+    const hasSearchTerm = searchTerm && searchTerm.trim().length > 0;
+    const lowerCaseSearchTerm = hasSearchTerm ? searchTerm.trim().toLowerCase() : '';
     const hasTypeFilter = types.length > 0;
     const hasMethodFilter = methods.length > 0;
     const hasBankFilter = filteredBankAccounts.length > 0;
     const hasCategoryFilter = filteredCategories.length > 0;
 
     return transactions.filter(t => {
+        if (hasSearchTerm && !t.description.toLowerCase().includes(lowerCaseSearchTerm)) {
+            return false;
+        }
+
         const transactionDate = new Date(t.date);
 
         if (start && transactionDate < start) return false;
@@ -77,7 +83,9 @@ const Resumen: React.FC<ResumenProps> = ({
         if (hasTypeFilter) {
             let transactionTypeForFilter: TransactionTypeFilter;
 
-            if (t.transferId) {
+            if (t.isGift) {
+                transactionTypeForFilter = 'gift';
+            } else if (t.transferId) {
                 transactionTypeForFilter = 'transfer';
             } else if (t.type === 'expense' && t.categoryId === ahorroCategoryId) {
                 transactionTypeForFilter = 'saving';
