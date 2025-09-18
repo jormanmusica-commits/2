@@ -606,7 +606,7 @@ const App: React.FC = () => {
     updateActiveProfileData(data => ({ ...data, fixedExpenses: data.fixedExpenses.filter(expense => expense.id !== id) }));
   }, []);
 
-  const handleConfirmFixedExpenseAsGift = useCallback((expenseId: string, date: string, description: string) => {
+  const handleConfirmFixedExpenseAsGift = useCallback((expenseId: string, date: string, details: string) => {
     if (!activeProfile) return;
 
     const expense = activeProfile.data.fixedExpenses.find(e => e.id === expenseId);
@@ -614,13 +614,14 @@ const App: React.FC = () => {
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
-      description: description,
+      description: expense.name, // Ensure description matches for paid status detection
       amount: expense.amount,
       date: date,
       type: 'expense',
       paymentMethodId: 'gift', // This will be ignored by balance calculations
       categoryId: expense.categoryId,
       isGift: true,
+      details: details, // Store user-provided text in details
     };
 
     const updatedTransactions = [newTransaction, ...activeProfile.data.transactions];

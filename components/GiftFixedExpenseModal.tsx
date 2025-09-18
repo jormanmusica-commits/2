@@ -7,7 +7,7 @@ interface GiftFixedExpenseModalProps {
   isOpen: boolean;
   onClose: () => void;
   expense: FixedExpense | null;
-  onConfirm: (expenseId: string, date: string, description: string) => void;
+  onConfirm: (expenseId: string, date: string, details: string) => void;
   currency: string;
   minDateForExpenses?: string;
 }
@@ -16,8 +16,7 @@ const GiftFixedExpenseModal: React.FC<GiftFixedExpenseModalProps> = ({
   isOpen, onClose, expense, onConfirm, currency, minDateForExpenses
 }) => {
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [description, setDescription] = useState('');
-  const [error, setError] = useState('');
+  const [details, setDetails] = useState('');
 
   const formatCurrency = (amount: number) => {
     const locale = currency === 'COP' ? 'es-CO' : (currency === 'CLP' ? 'es-CL' : 'es-ES');
@@ -33,19 +32,13 @@ const GiftFixedExpenseModal: React.FC<GiftFixedExpenseModalProps> = ({
     if (isOpen && expense) {
       const today = new Date().toISOString().split('T')[0];
       setDate(minDateForExpenses && today < minDateForExpenses ? minDateForExpenses : today);
-      setDescription(expense.name);
-      setError('');
+      setDetails(expense.name);
     }
   }, [isOpen, expense, minDateForExpenses]);
 
   const handleSubmit = () => {
     if (!expense) return;
-    if (!description.trim()) {
-      setError('La descripción es obligatoria.');
-      return;
-    }
-    setError('');
-    onConfirm(expense.id, date, description.trim());
+    onConfirm(expense.id, date, details.trim());
   };
 
   if (!isOpen || !expense) return null;
@@ -66,11 +59,11 @@ const GiftFixedExpenseModal: React.FC<GiftFixedExpenseModalProps> = ({
             </div>
           </div>
            <div>
-            <label htmlFor="gift-description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción</label>
+            <label htmlFor="gift-details" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Descripción / Nota (Opcional)</label>
             <textarea
-                id="gift-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                id="gift-details"
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 dark:bg-gray-700"
             />
@@ -79,7 +72,6 @@ const GiftFixedExpenseModal: React.FC<GiftFixedExpenseModalProps> = ({
             <label htmlFor="gift-date" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Fecha del Regalo</label>
             <CustomDatePicker value={date} onChange={setDate} min={minDateForExpenses} themeColor="#14b8a6" displayMode="modal"/>
           </div>
-          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
         </div>
 
         <footer className="p-4 border-t border-gray-200 dark:border-gray-700 mt-auto">
