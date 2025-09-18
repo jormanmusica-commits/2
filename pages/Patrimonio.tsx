@@ -198,6 +198,7 @@ const Patrimonio: React.FC<PatrimonioProps> = ({
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
     const [activeFilters, setActiveFilters] = useState<PatrimonioFilters | null>(null);
     const [detailPatrimonioItem, setDetailPatrimonioItem] = useState<HistoryItemType | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const formatCurrency = (amount: number) => {
         const locale = currency === 'COP' ? 'es-CO' : (currency === 'CLP' ? 'es-CL' : 'es-ES');
@@ -291,26 +292,72 @@ const Patrimonio: React.FC<PatrimonioProps> = ({
     };
 
     const filteredHistoryItems = useMemo(() => {
-        if (!activeFilters) return historyItems;
+        let results = historyItems;
+        const lowerCaseSearchTerm = searchTerm.trim().toLowerCase();
+
+        if (lowerCaseSearchTerm) {
+            results = results.filter(item => {
+                const numericSearchTerm = lowerCaseSearchTerm.replace(',', '.');
+                
+                if (item.name.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+                if (item.amount.toString().includes(numericSearchTerm)) return true;
+                if ('originalAmount' in item && item.originalAmount && item.originalAmount.toString().includes(numericSearchTerm)) return true;
+                
+                const formattedDate = new Intl.DateTimeFormat('es-ES', { dateStyle: 'full', timeZone: 'UTC' }).format(new Date(item.date + 'T00:00:00Z')).toLowerCase();
+                if (formattedDate.includes(lowerCaseSearchTerm)) return true;
+
+                if ('details' in item && item.details && item.details.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+
+                const typeLabel = (() => {
+                    switch (item.patrimonioType) {
+                        case 'asset': return 'ahorro';
+                        case 'loan': return 'préstamo';
+                        case 'liability': return 'deuda';
+                        case 'debt-payment': return 'pago de deuda';
+                        case 'loan-repayment': return 'reembolso préstamo';
+                        case 'loan-addition': return 'ampliación préstamo';
+                        case 'debt-addition': return 'ampliación deuda';
+                        case 'asset-spend': return 'gasto de ahorro';
+                    }
+                })();
+                if (typeLabel.includes(lowerCaseSearchTerm)) return true;
+                
+                if ('sourceDetails' in item && item.sourceDetails && item.sourceDetails.name.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+
+                return false;
+            });
+        }
+
+        if (!activeFilters) return results;
 
         const { types, sources } = activeFilters;
         const hasTypeFilter = types.length > 0;
         const hasSourceFilter = sources.length > 0;
 
-        return historyItems.filter(item => {
+        return results.filter(item => {
             if (hasTypeFilter && !types.includes(item.patrimonioType)) {
                 return false;
             }
             if (hasSourceFilter) {
-                if (item.patrimonioType === 'liability') return false; 
-                const sourceId = (item as Asset | Loan).sourceMethodId;
+                 const applicableTypesForSourceFilter: HistoryItemType['patrimonioType'][] = ['asset', 'loan', 'debt-payment', 'loan-addition'];
+                if (!applicableTypesForSourceFilter.includes(item.patrimonioType)) {
+                    return false;
+                }
+                
+                let sourceId: string | undefined;
+                if (item.patrimonioType === 'asset' || item.patrimonioType === 'loan') {
+                    sourceId = item.sourceMethodId;
+                } else if (item.patrimonioType === 'debt-payment' || item.patrimonioType === 'loan-addition') {
+                    sourceId = item.paymentMethodId;
+                }
+
                 if (!sourceId || !sources.includes(sourceId)) {
                     return false;
                 }
             }
             return true;
         });
-    }, [historyItems, activeFilters]);
+    }, [historyItems, activeFilters, searchTerm]);
 
     const handleDelete = (item: HistoryItemType) => {
         if (!window.confirm(`¿Estás seguro de que quieres eliminar "${item.name}"? Esta acción no se puede deshacer y también eliminará la transacción asociada si existe.`)) return;
@@ -365,16 +412,24 @@ const Patrimonio: React.FC<PatrimonioProps> = ({
             </div>
 
             <div>
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Historial de Patrimonio</h2>
+                 <h2 className="text-2xl font-bold text-gray-800 dark:text-white text-center mb-4">Historial de Patrimonio</h2>
+                 <div className="flex items-center gap-2 mb-4">
+                    <input
+                        type="text"
+                        placeholder="Buscar por nombre, tipo, monto, fecha..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#008f39]/50 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                        aria-label="Buscar en historial de patrimonio"
+                    />
                     <button
                         onClick={() => setIsFilterPanelOpen(true)}
                         aria-label="Filtrar patrimonio"
-                        className="relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008f39]"
+                        className="relative flex-shrink-0 p-3 rounded-full text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008f39]"
                     >
-                        <FilterIcon className="w-6 h-6" />
+                        <FilterIcon className="w-5 h-5" />
                         {activeFilters && (
-                            <span className="absolute top-1 right-1 block w-2 h-2 bg-blue-500 rounded-full ring-2 ring-gray-50 dark:ring-black"></span>
+                            <span className="absolute top-1 right-1 block w-2 h-2 bg-blue-500 rounded-full ring-2 ring-white dark:ring-gray-800"></span>
                         )}
                     </button>
                 </div>

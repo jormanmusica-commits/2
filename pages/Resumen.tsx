@@ -36,7 +36,7 @@ const Resumen: React.FC<ResumenProps> = ({
   monthlyExpensesByBank, monthlyExpensesByCash,
   totalIncome, totalExpenses
 }) => {
-  const { data: { transactions, categories, bankAccounts }, currency } = profile;
+  const { data: { transactions, categories, bankAccounts, liabilities = [], loans = [] }, currency } = profile;
   const [modalType, setModalType] = useState<'income' | 'expense' | null>(null);
   const [detailTransaction, setDetailTransaction] = useState<Transaction | null>(null);
 
@@ -94,6 +94,34 @@ const Resumen: React.FC<ResumenProps> = ({
         // 5. Check amount
         if (t.amount.toString().includes(numericSearchTerm)) return true;
 
+        // 6. Check transaction details field
+        if (t.details && t.details.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+
+        // 7. Check related patrimony items (liabilities/debts and loans)
+        const liabilityId = t.liabilityId ?? ((t.patrimonioType === 'liability' || t.patrimonioType === 'debt-addition') ? t.patrimonioId : undefined);
+        if (liabilityId) {
+            const relatedLiability = liabilities.find(l => l.id === liabilityId);
+            if (relatedLiability) {
+                if (relatedLiability.name.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+                if (relatedLiability.details && relatedLiability.details.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+            }
+        }
+
+        const loanId = t.loanId ?? ((t.patrimonioType === 'loan' || t.patrimonioType === 'loan-addition') ? t.patrimonioId : undefined);
+        if (loanId) {
+            const relatedLoan = loans.find(l => l.id === loanId);
+            if (relatedLoan) {
+                if (relatedLoan.name.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+                if (relatedLoan.details && relatedLoan.details.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+            }
+        }
+
+        // 8. Explicit check for "regalo"
+        if (t.isGift && ('regalo'.startsWith(lowerCaseSearchTerm) || 'regalos'.startsWith(lowerCaseSearchTerm))) return true;
+        
+        // 9. Explicit check for "ahorro"
+        if ((t.patrimonioType === 'asset' || t.patrimonioType === 'asset-spend') && ('ahorro'.startsWith(lowerCaseSearchTerm) || 'ahorros'.startsWith(lowerCaseSearchTerm))) return true;
+
         return false;
       });
     }
@@ -141,7 +169,7 @@ const Resumen: React.FC<ResumenProps> = ({
 
         return true;
     });
-}, [transactions, searchTerm, advancedFilters, categories, bankAccounts, ahorroCategoryId]);
+}, [transactions, searchTerm, advancedFilters, categories, bankAccounts, ahorroCategoryId, liabilities, loans]);
 
   return (
     <div className="animate-fade-in">
@@ -180,7 +208,7 @@ const Resumen: React.FC<ResumenProps> = ({
         <div className="flex items-center gap-2 mb-4">
             <input
                 type="text"
-                placeholder="Buscar por descripción, categoría, monto..."
+                placeholder="Buscar en descripción, categoría, monto, deudas, préstamos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#008f39]/50 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
