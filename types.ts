@@ -112,10 +112,12 @@ export interface PatrimonioFilters {
 }
 
 // FIX: Added `sourceDetails` to `liability` and `debt-addition` types to match usage in `Patrimonio.tsx`.
+// FIX: Added 'asset-spend' type to correctly represent spending from savings in the patrimony history.
 export type HistoryItemType = (Asset & { patrimonioType: 'asset', amount: number, sourceDetails?: { name: string, color: string } }) |
                        (Liability & { patrimonioType: 'liability', amount: number, sourceDetails?: { name: string, color: string } }) |
                        (Loan & { patrimonioType: 'loan', amount: number, sourceDetails?: { name: string, color: string } }) |
                        (Transaction & { patrimonioType: 'debt-payment', name: string }) |
                        (Transaction & { patrimonioType: 'loan-repayment', name: string }) |
                        (Transaction & { patrimonioType: 'loan-addition', name: string }) |
-                       (Transaction & { patrimonioType: 'debt-addition', name: string, sourceDetails?: { name: string, color: string } });
+                       (Transaction & { patrimonioType: 'debt-addition', name: string, sourceDetails?: { name: string, color: string } }) |
+                       (Transaction & { patrimonioType: 'asset-spend', name: string });

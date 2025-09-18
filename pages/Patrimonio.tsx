@@ -94,6 +94,15 @@ const HistoryItem: React.FC<{
                 typeLabel: 'Ampliación Deuda',
                 sign: '+'
             };
+            // FIX: Added 'asset-spend' to correctly display transactions for spending from savings.
+            case 'asset-spend': return {
+                icon: <ArrowDownIcon className="w-5 h-5 text-teal-500" />,
+                bgColorClass: 'bg-teal-500/10',
+                textColorClass: 'text-teal-500',
+                displayName: name,
+                typeLabel: 'Gasto de Ahorro',
+                sign: '-'
+            };
         }
     }, [patrimonioType, name]);
     
@@ -218,8 +227,9 @@ const Patrimonio: React.FC<PatrimonioProps> = ({
         // Payments/repayments from transactions are added with a later time (12:00 UTC)
         // to ensure they appear after creations on the same day when sorted descending.
         profile.data.transactions.forEach(t => {
+            // FIX: Added `asset-spend` to the condition to include these transactions in the patrimony history.
             // Only consider transactions that are part of the patrimonio history
-            if (t.liabilityId || t.loanId || (t.patrimonioType === 'loan-addition' && t.patrimonioId) || (t.patrimonioType === 'debt-addition' && t.patrimonioId)) {
+            if (t.liabilityId || t.loanId || (t.patrimonioType === 'loan-addition' && t.patrimonioId) || (t.patrimonioType === 'debt-addition' && t.patrimonioId) || t.patrimonioType === 'asset-spend') {
                 const paymentTimestamp = new Date(t.date + 'T12:00:00Z').getTime();
 
                 if (t.liabilityId) {
@@ -255,6 +265,15 @@ const Patrimonio: React.FC<PatrimonioProps> = ({
                         patrimonioType: 'debt-addition',
                         name: t.description,
                         sourceDetails: getSourceDetails(t.paymentMethodId),
+                    });
+                }
+                // FIX: Added logic to create a history item for 'asset-spend' transactions.
+                if (t.patrimonioType === 'asset-spend') {
+                     combined.push({
+                        ...t,
+                        timestamp: paymentTimestamp,
+                        patrimonioType: 'asset-spend',
+                        name: t.description,
                     });
                 }
             }

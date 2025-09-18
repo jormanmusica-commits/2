@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Profile, Filters, TransactionTypeFilter, Transaction } from '../types';
 import Summary from '../components/Summary';
 import TransactionList from '../components/IncomeList';
@@ -38,43 +38,81 @@ const Resumen: React.FC<ResumenProps> = ({
 }) => {
   const { data: { transactions, categories, bankAccounts }, currency } = profile;
   const [modalType, setModalType] = useState<'income' | 'expense' | null>(null);
-  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
-  const [activeFilters, setActiveFilters] = useState<Filters | null>(null);
   const [detailTransaction, setDetailTransaction] = useState<Transaction | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isAdvancedFilterOpen, setIsAdvancedFilterOpen] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<Omit<Filters, 'searchTerm'> | null>(null);
 
   const ahorroCategoryId = useMemo(() => {
     return categories.find(c => c.name.toLowerCase() === 'ahorro')?.id;
   }, [categories]);
   
-  const handleApplyFilters = (newFilters: Filters) => {
-    const { searchTerm, startDate, endDate, types, methods, bankAccounts, categories } = newFilters;
-    const isFilterActive = !!searchTerm || !!startDate || !!endDate || types.length > 0 || methods.length > 0 || bankAccounts.length > 0 || categories.length > 0;
-    setActiveFilters(isFilterActive ? newFilters : null);
-    setIsFilterPanelOpen(false);
+  const handleApplyAdvancedFilters = useCallback((newFilters: Omit<Filters, 'searchTerm'>) => {
+    const { startDate, endDate, types, methods, bankAccounts, categories } = newFilters;
+    const isFilterActive = !!startDate || !!endDate || types.length > 0 || methods.length > 0 || bankAccounts.length > 0 || categories.length > 0;
+    setAdvancedFilters(isFilterActive ? newFilters : null);
+  }, []);
+
+  const formatDateForSearch = (dateString: string): string => {
+    const date = new Date(dateString + 'T00:00:00Z');
+    const options: Intl.DateTimeFormatOptions = {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+    };
+    return new Intl.DateTimeFormat('es-ES', options).format(date).toLowerCase();
   };
 
   const filteredTransactions = useMemo(() => {
-    if (!activeFilters) return transactions;
+    const lowerCaseSearchTerm = searchTerm.trim().toLowerCase();
+    const hasSearchTerm = lowerCaseSearchTerm.length > 0;
 
-    const { searchTerm, startDate, endDate, types, methods, bankAccounts: filteredBankAccounts, categories: filteredCategories } = activeFilters;
+    let results = transactions;
+
+    if (hasSearchTerm) {
+      const numericSearchTerm = lowerCaseSearchTerm.replace(',', '.');
+      results = results.filter(t => {
+        // 1. Check description
+        if (t.description.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+
+        // 2. Check category name
+        const category = categories.find(c => c.id === t.categoryId);
+        if (category && category.name.toLowerCase().includes(lowerCaseSearchTerm)) return true;
+
+        // 3. Check payment method name
+        const paymentMethodName = t.paymentMethodId === CASH_METHOD_ID
+            ? 'efectivo'
+            : bankAccounts.find(b => b.id === t.paymentMethodId)?.name.toLowerCase();
+        if (paymentMethodName && paymentMethodName.includes(lowerCaseSearchTerm)) return true;
+
+        // 4. Check formatted date
+        if (formatDateForSearch(t.date).includes(lowerCaseSearchTerm)) return true;
+        
+        // 5. Check amount
+        if (t.amount.toString().includes(numericSearchTerm)) return true;
+
+        return false;
+      });
+    }
+    
+    if (!advancedFilters) return results;
+
+    const { startDate, endDate, types, methods, bankAccounts: filteredBankAccounts, categories: filteredCategories } = advancedFilters;
     
     const start = startDate ? new Date(startDate) : null;
     if (start) start.setUTCHours(0,0,0,0);
     const end = endDate ? new Date(endDate) : null;
     if (end) end.setUTCHours(23,59,59,999);
 
-    const hasSearchTerm = searchTerm && searchTerm.trim().length > 0;
-    const lowerCaseSearchTerm = hasSearchTerm ? searchTerm.trim().toLowerCase() : '';
     const hasTypeFilter = types.length > 0;
     const hasMethodFilter = methods.length > 0;
     const hasBankFilter = filteredBankAccounts.length > 0;
     const hasCategoryFilter = filteredCategories.length > 0;
 
-    return transactions.filter(t => {
-        if (hasSearchTerm && !t.description.toLowerCase().includes(lowerCaseSearchTerm)) {
-            return false;
-        }
-
+    return results.filter(t => {
         const transactionDate = new Date(t.date);
 
         if (start && transactionDate < start) return false;
@@ -82,42 +120,28 @@ const Resumen: React.FC<ResumenProps> = ({
 
         if (hasTypeFilter) {
             let transactionTypeForFilter: TransactionTypeFilter;
-
-            if (t.isGift) {
-                transactionTypeForFilter = 'gift';
-            } else if (t.transferId) {
-                transactionTypeForFilter = 'transfer';
-            } else if (t.type === 'expense' && t.categoryId === ahorroCategoryId) {
-                transactionTypeForFilter = 'saving';
-            } else if (t.type === 'expense' && t.patrimonioType === 'loan') {
-                transactionTypeForFilter = 'loan';
-            } else {
-                transactionTypeForFilter = t.type;
-            }
-            
+            if (t.isGift) transactionTypeForFilter = 'gift';
+            else if (t.transferId) transactionTypeForFilter = 'transfer';
+            else if (t.type === 'expense' && t.categoryId === ahorroCategoryId) transactionTypeForFilter = 'saving';
+            else if (t.type === 'expense' && t.patrimonioType === 'loan') transactionTypeForFilter = 'loan';
+            else transactionTypeForFilter = t.type;
             if (!types.includes(transactionTypeForFilter)) return false;
         }
         
         if (hasMethodFilter || hasBankFilter) {
             const isCash = t.paymentMethodId === CASH_METHOD_ID;
             const methodType = isCash ? 'cash' : 'bank';
-            
             if (hasMethodFilter && !methods.includes(methodType)) return false;
-            
-            if (!isCash && hasBankFilter) {
-                if (!filteredBankAccounts.includes(t.paymentMethodId)) return false;
-            }
+            if (!isCash && hasBankFilter && !filteredBankAccounts.includes(t.paymentMethodId)) return false;
         }
         
         if (hasCategoryFilter) {
-            if (!t.categoryId || !filteredCategories.includes(t.categoryId)) {
-                return false;
-            }
+            if (!t.categoryId || !filteredCategories.includes(t.categoryId)) return false;
         }
 
         return true;
     });
-}, [transactions, activeFilters, ahorroCategoryId]);
+}, [transactions, searchTerm, advancedFilters, categories, bankAccounts, ahorroCategoryId]);
 
   return (
     <div className="animate-fade-in">
@@ -151,19 +175,38 @@ const Resumen: React.FC<ResumenProps> = ({
       </div>
 
       <div className="mt-8">
-        <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Historial de Transacciones</h2>
+        <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4 text-center">Historial de Transacciones</h2>
+        
+        <div className="flex items-center gap-2 mb-4">
+            <input
+                type="text"
+                placeholder="Buscar por descripción, categoría, monto..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#008f39]/50 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                aria-label="Buscar en transacciones"
+            />
             <button
-                onClick={() => setIsFilterPanelOpen(true)}
-                aria-label="Filtrar transacciones"
-                className="relative p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-[#008f39]"
+                onClick={() => setIsAdvancedFilterOpen(prev => !prev)}
+                aria-label="Filtros avanzados"
+                className={`relative flex-shrink-0 p-3 rounded-full transition-colors ${isAdvancedFilterOpen ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-500' : 'text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600' } focus:outline-none focus:ring-2 focus:ring-[#008f39]`}
             >
-                <FilterIcon className="w-6 h-6" />
-                {activeFilters && (
-                    <span className="absolute top-1 right-1 block w-2 h-2 bg-blue-500 rounded-full ring-2 ring-gray-50 dark:ring-black"></span>
+                <FilterIcon className="w-5 h-5" />
+                {advancedFilters && (
+                    <span className="absolute top-1 right-1 block w-2 h-2 bg-blue-500 rounded-full ring-2 ring-white dark:ring-gray-800"></span>
                 )}
             </button>
         </div>
+        
+        <div className={`transition-all duration-500 ease-in-out overflow-hidden ${isAdvancedFilterOpen ? 'max-h-[1000px] opacity-100 mb-4' : 'max-h-0 opacity-0'}`}>
+          <FilterPanel
+            onApply={handleApplyAdvancedFilters}
+            currentFilters={advancedFilters}
+            bankAccounts={bankAccounts}
+            categories={categories}
+          />
+        </div>
+
         <TransactionList 
           transactions={filteredTransactions} 
           categories={categories}
@@ -182,14 +225,6 @@ const Resumen: React.FC<ResumenProps> = ({
         expenseByBank={monthlyExpensesByBank}
         expenseByCash={monthlyExpensesByCash}
         currency={currency}
-      />
-      <FilterPanel
-        isOpen={isFilterPanelOpen}
-        onClose={() => setIsFilterPanelOpen(false)}
-        onApply={handleApplyFilters}
-        currentFilters={activeFilters}
-        bankAccounts={bankAccounts}
-        categories={categories}
       />
       <TransactionDetailModal
         isOpen={!!detailTransaction}

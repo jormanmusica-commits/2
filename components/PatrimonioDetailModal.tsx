@@ -59,7 +59,8 @@ const PatrimonioDetailModal: React.FC<PatrimonioDetailModalProps> = ({ isOpen, o
                 title: 'Detalle de Deuda',
                 icon: <ArrowDownIcon className="w-8 h-8 text-red-500" />,
                 colorClass: 'text-red-500',
-                sign: '-',
+                // FIX: Changed sign to '+' for consistency, as a liability is incoming money.
+                sign: '+',
             };
             case 'debt-payment': return {
                 title: 'Detalle de Pago',
@@ -72,6 +73,25 @@ const PatrimonioDetailModal: React.FC<PatrimonioDetailModalProps> = ({ isOpen, o
                 icon: <ArrowUpIcon className="w-8 h-8 text-cyan-500" />,
                 colorClass: 'text-cyan-500',
                 sign: '+',
+            };
+            // FIX: Added cases for new patrimony types to ensure they display correctly in the detail view.
+            case 'loan-addition': return {
+                title: 'Detalle de Ampliación',
+                icon: <ArrowUpIcon className="w-8 h-8 text-blue-500" />,
+                colorClass: 'text-blue-500',
+                sign: '-',
+            };
+            case 'debt-addition': return {
+                title: 'Detalle de Ampliación',
+                icon: <ArrowDownIcon className="w-8 h-8 text-red-500" />,
+                colorClass: 'text-red-500',
+                sign: '+',
+            };
+            case 'asset-spend': return {
+                title: 'Detalle Gasto de Ahorro',
+                icon: <ArrowDownIcon className="w-8 h-8 text-teal-500" />,
+                colorClass: 'text-teal-500',
+                sign: '-',
             };
         }
     }, [patrimonioType]);
