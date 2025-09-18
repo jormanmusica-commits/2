@@ -67,12 +67,15 @@ const FixedExpenseModal: React.FC<FixedExpenseModalProps> = ({
 
     transactions
         .filter(t => {
-            const transactionDate = new Date(t.date);
+            // Parse date string 'YYYY-MM-DD' into parts to avoid timezone issues.
+            const [year, month] = t.date.split('-').map(Number);
+            // The type 'expense' covers both regular expenses and gift expenses.
             return t.type === 'expense' &&
-                    transactionDate.getMonth() === currentMonth &&
-                    transactionDate.getFullYear() === currentYear;
+                   year === currentYear &&
+                   (month - 1) === currentMonth; // month is 1-12, getMonth is 0-11
         })
         .forEach(t => {
+            // A transaction marks a fixed expense as paid if its description matches the expense's name.
             paidNames.add(t.description);
         });
     
