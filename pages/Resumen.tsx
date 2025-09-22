@@ -8,6 +8,7 @@ import MonthlyBreakdownModal from '../components/MonthlyBreakdownModal';
 import FilterPanel from '../components/FilterPanel';
 import FilterIcon from '../components/icons/FilterIcon';
 import TransactionDetailModal from '../components/TransactionDetailModal';
+import FilteredSummary from '../components/FilteredSummary';
 
 interface ResumenProps {
   profile: Profile;
@@ -75,29 +76,45 @@ const Resumen: React.FC<ResumenProps> = ({
     if (hasSearchTerm) {
       const numericSearchTerm = lowerCaseSearchTerm.replace(',', '.');
       results = results.filter(t => {
-        // 1. Check description
+        
+        // --- Intelligent Keyword Search ---
+        const isIncome = t.type === 'income';
+        const isExpense = t.type === 'expense';
+        const isTransfer = !!t.transferId;
+        const isGift = !!t.isGift;
+
+        if (('ingreso'.startsWith(lowerCaseSearchTerm) || 'ingresos'.startsWith(lowerCaseSearchTerm)) && isIncome && !isTransfer) return true;
+        if (('gasto'.startsWith(lowerCaseSearchTerm) || 'gastos'.startsWith(lowerCaseSearchTerm)) && isExpense && !isTransfer) return true;
+        if (('transferencia'.startsWith(lowerCaseSearchTerm) || 'transferencias'.startsWith(lowerCaseSearchTerm)) && isTransfer) return true;
+        if (('regalo'.startsWith(lowerCaseSearchTerm) || 'regalos'.startsWith(lowerCaseSearchTerm)) && isGift) return true;
+
+        const isSavingRelated = t.patrimonioType === 'asset' || t.patrimonioType === 'asset-spend' || t.categoryId === ahorroCategoryId;
+        const isDebtRelated = t.patrimonioType === 'liability' || t.patrimonioType === 'debt-addition' || t.patrimonioType === 'debt-payment' || !!t.liabilityId;
+        const isLoanRelated = t.patrimonioType === 'loan' || t.patrimonioType === 'loan-addition' || t.patrimonioType === 'loan-repayment' || !!t.loanId;
+        const isPatrimonyRelated = isSavingRelated || isDebtRelated || isLoanRelated;
+
+        if (('ahorro'.startsWith(lowerCaseSearchTerm) || 'ahorros'.startsWith(lowerCaseSearchTerm)) && isSavingRelated) return true;
+        if (('deuda'.startsWith(lowerCaseSearchTerm) || 'deudas'.startsWith(lowerCaseSearchTerm)) && isDebtRelated) return true;
+        if (('préstamo'.startsWith(lowerCaseSearchTerm) || 'prestamo'.startsWith(lowerCaseSearchTerm) || 'préstamos'.startsWith(lowerCaseSearchTerm) || 'prestamos'.startsWith(lowerCaseSearchTerm)) && isLoanRelated) return true;
+        if (('patrimonio'.startsWith(lowerCaseSearchTerm)) && isPatrimonyRelated) return true;
+        
+        // --- Fallback to Field Search ---
         if (t.description.toLowerCase().includes(lowerCaseSearchTerm)) return true;
 
-        // 2. Check category name
         const category = categories.find(c => c.id === t.categoryId);
         if (category && category.name.toLowerCase().includes(lowerCaseSearchTerm)) return true;
 
-        // 3. Check payment method name
         const paymentMethodName = t.paymentMethodId === CASH_METHOD_ID
             ? 'efectivo'
             : bankAccounts.find(b => b.id === t.paymentMethodId)?.name.toLowerCase();
         if (paymentMethodName && paymentMethodName.includes(lowerCaseSearchTerm)) return true;
 
-        // 4. Check formatted date
         if (formatDateForSearch(t.date).includes(lowerCaseSearchTerm)) return true;
         
-        // 5. Check amount
         if (t.amount.toString().includes(numericSearchTerm)) return true;
 
-        // 6. Check transaction details field
         if (t.details && t.details.toLowerCase().includes(lowerCaseSearchTerm)) return true;
 
-        // 7. Check related patrimony items (liabilities/debts and loans)
         const liabilityId = t.liabilityId ?? ((t.patrimonioType === 'liability' || t.patrimonioType === 'debt-addition') ? t.patrimonioId : undefined);
         if (liabilityId) {
             const relatedLiability = liabilities.find(l => l.id === liabilityId);
@@ -115,12 +132,6 @@ const Resumen: React.FC<ResumenProps> = ({
                 if (relatedLoan.details && relatedLoan.details.toLowerCase().includes(lowerCaseSearchTerm)) return true;
             }
         }
-
-        // 8. Explicit check for "regalo"
-        if (t.isGift && ('regalo'.startsWith(lowerCaseSearchTerm) || 'regalos'.startsWith(lowerCaseSearchTerm))) return true;
-        
-        // 9. Explicit check for "ahorro"
-        if ((t.patrimonioType === 'asset' || t.patrimonioType === 'asset-spend') && ('ahorro'.startsWith(lowerCaseSearchTerm) || 'ahorros'.startsWith(lowerCaseSearchTerm))) return true;
 
         return false;
       });
@@ -169,7 +180,24 @@ const Resumen: React.FC<ResumenProps> = ({
 
         return true;
     });
-}, [transactions, searchTerm, advancedFilters, categories, bankAccounts, ahorroCategoryId, liabilities, loans]);
+  }, [transactions, searchTerm, advancedFilters, categories, bankAccounts, ahorroCategoryId, liabilities, loans]);
+
+  const { totalFilteredIncome, totalFilteredExpenses } = useMemo(() => {
+    return filteredTransactions.reduce((acc, t) => {
+        // Exclude internal movements from filtered summary to be consistent with global summaries
+        const isInternalExpense = t.transferId || t.patrimonioType === 'asset' || t.patrimonioType === 'loan' || t.patrimonioType === 'loan-addition';
+        const isInternalIncome = t.transferId || t.patrimonioType === 'liability' || t.patrimonioType === 'debt-addition' || t.patrimonioType === 'asset-spend';
+
+        if (t.type === 'income' && !isInternalIncome) {
+            acc.totalFilteredIncome += t.amount;
+        } else if (t.type === 'expense' && !isInternalExpense) {
+            acc.totalFilteredExpenses += t.amount;
+        }
+        return acc;
+    }, { totalFilteredIncome: 0, totalFilteredExpenses: 0 });
+  }, [filteredTransactions]);
+
+  const isFilterActive = searchTerm.trim().length > 0 || !!advancedFilters;
 
   return (
     <div className="animate-fade-in">
@@ -179,6 +207,7 @@ const Resumen: React.FC<ResumenProps> = ({
       <Summary 
         balance={balance} 
         balancesByMethod={balancesByMethod}
+        // FIX: The prop `onInitiateDeposit` was renamed to `onCashClick` to match the `Summary` component's props.
         onCashClick={onInitiateDeposit}
         onBankClick={onInitiateWithdrawal}
         currency={currency}
@@ -208,7 +237,7 @@ const Resumen: React.FC<ResumenProps> = ({
         <div className="flex items-center gap-2 mb-4">
             <input
                 type="text"
-                placeholder="Buscar en descripción, categoría, monto, deudas, préstamos..."
+                placeholder="Buscar por tipo, categoría, descripción, monto..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full shadow-sm focus:outline-none focus:ring-2 focus:ring-[#008f39]/50 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
@@ -234,6 +263,14 @@ const Resumen: React.FC<ResumenProps> = ({
             categories={categories}
           />
         </div>
+        
+        {isFilterActive && filteredTransactions.length > 0 && (
+          <FilteredSummary
+            income={totalFilteredIncome}
+            expenses={totalFilteredExpenses}
+            currency={currency}
+          />
+        )}
 
         <TransactionList 
           transactions={filteredTransactions} 
