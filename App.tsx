@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Theme, Transaction, Page, Category, BankAccount, FixedExpense, Profile, ProfileData, Asset, Liability, Loan } from './types';
+import { Theme, Transaction, Page, Category, BankAccount, FixedExpense, Profile, ProfileData, Asset, Liability, Loan, ExportSummary, ExportPayload } from './types';
 import Inicio from './pages/Inicio';
 import Resumen from './pages/Resumen';
 import Ajustes from './pages/Ajustes';
@@ -32,6 +32,7 @@ import DebtDetailModal from './components/DebtDetailModal';
 import EditDebtAdditionModal from './components/EditDebtAdditionModal';
 import SpendSavingsModal from './components/SpendSavingsModal';
 import GiftFixedExpenseModal from './components/GiftFixedExpenseModal';
+import Header from './components/Header';
 
 
 const CASH_METHOD_ID = 'efectivo';
@@ -771,35 +772,38 @@ const App: React.FC = () => {
 
   const handleSaveLiability = useCallback((name: string, details: string, amount: number, destinationMethodId: string, date: string, isInitial: boolean) => {
     if (!activeProfile) return;
-    
-    if (isInitial || amount === 0) {
-        const newLiability: Liability = { id: crypto.randomUUID(), name, details, amount, originalAmount: amount, date, initialAdditions: [] };
-        updateActiveProfileData(data => ({ ...data, liabilities: [...(data.liabilities || []), newLiability] }));
-        setIsAssetLiabilityModalOpen(false);
-        return;
-    }
-    
-    const newLiability: Liability = { id: crypto.randomUUID(), name, details, amount, originalAmount: amount, date, destinationMethodId, initialAdditions: [] };
-    const generalCategory = activeProfile.data.categories.find(c => c.name.toLowerCase() === 'general');
 
-    const newTransaction: Transaction = {
+    const newLiability: Liability = {
         id: crypto.randomUUID(),
-        description: `Deuda: ${name}`,
+        name,
+        details,
         amount,
+        originalAmount: amount,
         date,
-        type: 'income',
-        paymentMethodId: destinationMethodId,
-        categoryId: generalCategory?.id,
-        patrimonioId: newLiability.id,
-        patrimonioType: 'liability',
+        destinationMethodId: isInitial ? undefined : destinationMethodId,
+        initialAdditions: [],
     };
-    
-    const updatedTransactions = [newTransaction, ...activeProfile.data.transactions];
-    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
 
-    if (validationError) {
-        alert(validationError);
-        return;
+    let updatedTransactions = [...activeProfile.data.transactions];
+
+    if (!isInitial) {
+        const newTransaction: Transaction = {
+            id: crypto.randomUUID(),
+            description: `Deuda Adquirida: ${name}`,
+            amount: amount,
+            date: date,
+            type: 'income',
+            paymentMethodId: destinationMethodId,
+            patrimonioId: newLiability.id,
+            patrimonioType: 'liability',
+        };
+        updatedTransactions = [newTransaction, ...updatedTransactions];
+
+        const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
+        if (validationError) {
+            alert(validationError);
+            return;
+        }
     }
 
     updateActiveProfileData(data => ({
@@ -807,50 +811,43 @@ const App: React.FC = () => {
         liabilities: [...(data.liabilities || []), newLiability],
         transactions: updatedTransactions,
     }));
-    
+
     setIsAssetLiabilityModalOpen(false);
+    setModalConfig(null);
   }, [activeProfile]);
 
   const handleSaveLoan = useCallback((name: string, amount: number, sourceMethodId: string, date: string, isInitial: boolean, details: string) => {
     if (!activeProfile) return;
 
-    if (isInitial || amount === 0) {
-        const newLoan: Loan = { id: crypto.randomUUID(), name, details, amount, originalAmount: amount, date, sourceMethodId: undefined, initialAdditions: [] };
-        updateActiveProfileData(data => ({
-            ...data,
-            loans: [...(data.loans || []), newLoan],
-        }));
-        setIsAssetLiabilityModalOpen(false);
-        return;
-    }
-
-    const sourceBalance = balancesByMethod[sourceMethodId] || 0;
-    if (amount > sourceBalance) {
-        alert("Fondos insuficientes en la cuenta de origen.");
-        return;
-    }
-
-    const newLoan: Loan = { id: crypto.randomUUID(), name, details, amount, originalAmount: amount, date, sourceMethodId, initialAdditions: [] };
-    const prestamoCategory = activeProfile.data.categories.find(c => c.name.toLowerCase() === 'préstamos');
-    
-    const newTransaction: Transaction = {
+    const newLoan: Loan = {
         id: crypto.randomUUID(),
-        description: `Préstamo a ${name}`,
-        amount: amount,
-        date: date,
-        type: 'expense',
-        paymentMethodId: sourceMethodId,
-        categoryId: prestamoCategory?.id,
-        patrimonioId: newLoan.id,
-        patrimonioType: 'loan',
+        name,
+        details,
+        amount,
+        originalAmount: amount,
+        date,
+        sourceMethodId: isInitial ? undefined : sourceMethodId,
+        initialAdditions: [],
     };
-    
-    const updatedTransactions = [newTransaction, ...activeProfile.data.transactions];
-    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
 
-    if (validationError) {
-        alert(validationError);
-        return;
+    let updatedTransactions = [...activeProfile.data.transactions];
+    if (!isInitial) {
+        const newTransaction: Transaction = {
+            id: crypto.randomUUID(),
+            description: `Préstamo Concedido: ${name}`,
+            amount: amount,
+            date: date,
+            type: 'expense',
+            paymentMethodId: sourceMethodId,
+            patrimonioId: newLoan.id,
+            patrimonioType: 'loan',
+        };
+        updatedTransactions = [newTransaction, ...updatedTransactions];
+        const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
+        if (validationError) {
+            alert(validationError);
+            return;
+        }
     }
 
     updateActiveProfileData(data => ({
@@ -858,717 +855,11 @@ const App: React.FC = () => {
         loans: [...(data.loans || []), newLoan],
         transactions: updatedTransactions,
     }));
-
     setIsAssetLiabilityModalOpen(false);
-  }, [activeProfile, balancesByMethod]);
-
-  const handleUpdateLoanDetails = useCallback((loanId: string, name: string, details: string, newAmountStr: string) => {
-      updateActiveProfileData(data => ({
-          ...data,
-          loans: (data.loans || []).map(l => {
-              if (l.id === loanId) {
-                  const updatedLoan = { ...l, name, details };
-
-                  // Only allow amount editing for loans created as "initial movements"
-                  // to avoid breaking transaction history consistency.
-                  if (l.sourceMethodId === undefined) {
-                      const newAmount = parseFloat(newAmountStr.replace(',', '.')) || 0;
-                      // Adjust current amount based on the change in original amount
-                      const amountDifference = newAmount - l.originalAmount;
-                      updatedLoan.amount = l.amount + amountDifference;
-                      updatedLoan.originalAmount = newAmount;
-                  }
-                  return updatedLoan;
-              }
-              return l;
-          }),
-      }));
-      setEditingLoan(null);
-  }, []);
-
-  const handleAddValueToLoan = useCallback((loanId: string, amount: number, sourceMethodId: string, date: string, isInitial: boolean, details: string) => {
-    if (!activeProfile) return;
-
-    const loanToUpdate = (activeProfile.data.loans || []).find(l => l.id === loanId);
-    if (!loanToUpdate) return;
-
-    if (isInitial || amount === 0) {
-        updateActiveProfileData(data => ({
-            ...data,
-            loans: (data.loans || []).map(l => {
-                if (l.id === loanId) {
-                    const newAddition = { id: crypto.randomUUID(), amount, date, details };
-                    return {
-                        ...l,
-                        amount: l.amount + amount,
-                        originalAmount: l.originalAmount + amount,
-                        initialAdditions: [...(l.initialAdditions || []), newAddition],
-                    };
-                }
-                return l;
-            }),
-        }));
-        setAddingValueToLoan(null);
-        return;
-    }
-
-    // --- Logic for non-initial movement ---
-    const sourceBalance = balancesByMethod[sourceMethodId] || 0;
-    if (amount > sourceBalance) {
-        alert("Fondos insuficientes en la cuenta de origen.");
-        return;
-    }
-
-    const prestamoCategory = activeProfile.data.categories.find(c => c.name.toLowerCase() === 'préstamos');
-
-    const newTransaction: Transaction = {
-        id: crypto.randomUUID(),
-        description: `Ampliación préstamo: ${loanToUpdate.name}`,
-        amount: amount,
-        date: date,
-        type: 'expense',
-        paymentMethodId: sourceMethodId,
-        categoryId: prestamoCategory?.id,
-        patrimonioId: loanId,
-        patrimonioType: 'loan-addition',
-        details,
-    };
-    
-    const updatedLoans = (activeProfile.data.loans || []).map(l =>
-        l.id === loanId
-        ? { ...l, amount: l.amount + amount, originalAmount: l.originalAmount + amount }
-        : l
-    );
-
-    const updatedTransactions = [newTransaction, ...activeProfile.data.transactions];
-
-    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
-    if (validationError) {
-        alert(validationError);
-        return;
-    }
-
-    updateActiveProfileData(data => ({
-        ...data,
-        transactions: updatedTransactions,
-        loans: updatedLoans,
-    }));
-
-    setAddingValueToLoan(null);
-  }, [activeProfile, balancesByMethod]);
-
-  const handleUpdateLoanAddition = useCallback((loanId: string, additionId: string, newAmount: number, newDetails: string) => {
-      updateActiveProfileData(data => {
-          const updatedLoans = (data.loans || []).map(l => {
-              if (l.id === loanId) {
-                  const additionIndex = (l.initialAdditions || []).findIndex(add => add.id === additionId);
-                  if (additionIndex === -1) return l; // Addition not found
-
-                  const oldAddition = l.initialAdditions![additionIndex];
-                  const amountDifference = newAmount - oldAddition.amount;
-                  
-                  const newInitialAdditions = [...l.initialAdditions!];
-                  newInitialAdditions[additionIndex] = { ...oldAddition, amount: newAmount, details: newDetails };
-
-                  return {
-                      ...l,
-                      amount: l.amount + amountDifference,
-                      originalAmount: l.originalAmount + amountDifference,
-                      initialAdditions: newInitialAdditions,
-                  };
-              }
-              return l;
-          });
-          return { ...data, loans: updatedLoans };
-      });
-      setEditingLoanAddition(null);
-  }, []);
-
-  const handleAddValueToDebt = useCallback((debtId: string, amount: number, destinationMethodId: string, date: string, isInitial: boolean, details: string) => {
-    if (!activeProfile) return;
-
-    const debtToUpdate = (activeProfile.data.liabilities || []).find(l => l.id === debtId);
-    if (!debtToUpdate) return;
-
-    if (isInitial || amount === 0) {
-        updateActiveProfileData(data => ({
-            ...data,
-            liabilities: (data.liabilities || []).map(l => {
-                if (l.id === debtId) {
-                    const newAddition = { id: crypto.randomUUID(), amount, date, details };
-                    return {
-                        ...l,
-                        amount: l.amount + amount,
-                        originalAmount: l.originalAmount + amount,
-                        initialAdditions: [...(l.initialAdditions || []), newAddition],
-                    };
-                }
-                return l;
-            }),
-        }));
-        setAddingValueToDebt(null);
-        return;
-    }
-
-    const generalCategory = activeProfile.data.categories.find(c => c.name.toLowerCase() === 'general');
-
-    const newTransaction: Transaction = {
-        id: crypto.randomUUID(),
-        description: `Ampliación deuda: ${debtToUpdate.name}`,
-        amount,
-        date,
-        type: 'income',
-        paymentMethodId: destinationMethodId,
-        categoryId: generalCategory?.id,
-        patrimonioId: debtId,
-        patrimonioType: 'debt-addition',
-        details,
-    };
-    
-    const updatedLiabilities = (activeProfile.data.liabilities || []).map(l =>
-        l.id === debtId
-        ? { ...l, amount: l.amount + amount, originalAmount: l.originalAmount + amount }
-        : l
-    );
-
-    const updatedTransactions = [newTransaction, ...activeProfile.data.transactions];
-    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
-    if (validationError) {
-        alert(validationError);
-        return;
-    }
-
-    updateActiveProfileData(data => ({
-        ...data,
-        transactions: updatedTransactions,
-        liabilities: updatedLiabilities,
-    }));
-
-    setAddingValueToDebt(null);
+    setModalConfig(null);
   }, [activeProfile]);
 
-  const handleUpdateDebtDetails = useCallback((debtId: string, name: string, details: string, newAmountStr: string) => {
-      updateActiveProfileData(data => ({
-          ...data,
-          liabilities: (data.liabilities || []).map(l => {
-              if (l.id === debtId) {
-                  const updatedDebt = { ...l, name, details };
-                  if (l.destinationMethodId === undefined) {
-                      const newAmount = parseFloat(newAmountStr.replace(',', '.')) || 0;
-                      const amountDifference = newAmount - l.originalAmount;
-                      updatedDebt.amount = l.amount + amountDifference;
-                      updatedDebt.originalAmount = newAmount;
-                  }
-                  return updatedDebt;
-              }
-              return l;
-          }),
-      }));
-      setEditingDebt(null);
-  }, []);
-
-  const handleUpdateDebtAddition = useCallback((debtId: string, additionId: string, newAmount: number, newDetails: string) => {
-      updateActiveProfileData(data => {
-          const updatedLiabilities = (data.liabilities || []).map(l => {
-              if (l.id === debtId) {
-                  const additionIndex = (l.initialAdditions || []).findIndex(add => add.id === additionId);
-                  if (additionIndex === -1) return l;
-
-                  const oldAddition = l.initialAdditions![additionIndex];
-                  const amountDifference = newAmount - oldAddition.amount;
-                  
-                  const newInitialAdditions = [...l.initialAdditions!];
-                  newInitialAdditions[additionIndex] = { ...oldAddition, amount: newAmount, details: newDetails };
-
-                  return {
-                      ...l,
-                      amount: l.amount + amountDifference,
-                      originalAmount: l.originalAmount + amountDifference,
-                      initialAdditions: newInitialAdditions,
-                  };
-              }
-              return l;
-          });
-          return { ...data, liabilities: updatedLiabilities };
-      });
-      setEditingDebtAddition(null);
-  }, []);
-
-  const handleDeleteAsset = useCallback((id: string) => {
-    if (!activeProfile) return;
-
-    const updatedTransactions = activeProfile.data.transactions.filter(
-        t => !(t.patrimonioId === id && t.patrimonioType === 'asset')
-    );
-    const updatedAssets = (activeProfile.data.assets || []).filter(item => item.id !== id);
-
-    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
-    if (validationError) {
-        alert(validationError + "\nNo se puede eliminar este ahorro.");
-        return;
-    }
-
-    updateActiveProfileData(data => ({
-        ...data,
-        assets: updatedAssets,
-        transactions: updatedTransactions,
-    }));
-  }, [activeProfile]);
-
-  const handleDeleteLiability = useCallback((id: string) => {
-      if (!activeProfile) return;
-      const updatedTransactions = activeProfile.data.transactions.filter(
-          t => !(t.patrimonioId === id && (t.patrimonioType === 'liability' || t.patrimonioType === 'debt-addition'))
-      );
-      const updatedLiabilities = (activeProfile.data.liabilities || []).filter(item => item.id !== id);
-
-      const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
-      if (validationError) {
-          alert(validationError + "\nNo se puede eliminar esta deuda.");
-          return;
-      }
-
-      updateActiveProfileData(data => ({
-          ...data,
-          liabilities: updatedLiabilities,
-          transactions: updatedTransactions,
-      }));
-  }, [activeProfile]);
-
-  const handleDeleteLoan = useCallback((id: string) => {
-    if (!activeProfile) return;
-
-    const updatedTransactions = activeProfile.data.transactions.filter(
-        t => !(t.patrimonioId === id && t.patrimonioType === 'loan')
-    );
-    const updatedLoans = (activeProfile.data.loans || []).filter(item => item.id !== id);
-
-    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
-    if (validationError) {
-        alert(validationError + "\nNo se puede eliminar este préstamo.");
-        return;
-    }
-
-    updateActiveProfileData(data => ({
-        ...data,
-        loans: updatedLoans,
-        transactions: updatedTransactions,
-    }));
-  }, [activeProfile]);
-
-  const handlePayDebts = useCallback((payments: { liabilityId: string, amount: number }[], paymentMethodId: string) => {
-    if (!activeProfile) return;
-
-    const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0);
-    const sourceBalance = balancesByMethod[paymentMethodId] || 0;
-
-    if (totalAmount > sourceBalance) {
-        alert("Fondos insuficientes en la cuenta de origen.");
-        return;
-    }
-    
-    const generalCategory = activeProfile.data.categories.find(c => c.name.toLowerCase() === 'general');
-
-    const newTransactions: Transaction[] = payments.map(payment => {
-        const liability = (activeProfile.data.liabilities || []).find(l => l.id === payment.liabilityId)!;
-        const isFullPayment = payment.amount >= liability.amount - 0.001;
-        return {
-            id: crypto.randomUUID(),
-            description: `${isFullPayment ? 'Liquidación de deuda' : 'Pago parcial de deuda'}: ${liability.name}`,
-            amount: payment.amount,
-            date: new Date().toISOString().split('T')[0],
-            type: 'expense' as 'expense',
-            paymentMethodId: paymentMethodId,
-            categoryId: generalCategory?.id,
-            liabilityId: payment.liabilityId,
-        };
-    });
-
-    const updatedTransactions = [...newTransactions, ...activeProfile.data.transactions];
-    
-    const paymentsMap = new Map(payments.map(p => [p.liabilityId, p.amount]));
-    
-    const updatedLiabilities = (activeProfile.data.liabilities || [])
-        .map(liability => {
-            if (paymentsMap.has(liability.id)) {
-                const paymentAmount = paymentsMap.get(liability.id)!;
-                const remaining = liability.amount - paymentAmount;
-                if (remaining > 0.001) { // Epsilon for float
-                    return { ...liability, amount: remaining };
-                }
-                return null; // Paid in full
-            }
-            return liability;
-        })
-        .filter((l): l is Liability => l !== null);
-
-    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
-    if (validationError) {
-        alert(validationError);
-        return;
-    }
-
-    updateActiveProfileData(data => ({
-        ...data,
-        transactions: updatedTransactions,
-        liabilities: updatedLiabilities,
-    }));
-
-    setPayingDebt(null);
-}, [activeProfile, balancesByMethod]);
-
-const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amount: number }[], paymentMethodId: string, date: string) => {
-    if (!activeProfile) return;
-
-    const prestamoCategory = activeProfile.data.categories.find(c => c.name.toLowerCase() === 'préstamos');
-
-    const newTransactions: Transaction[] = payments.map(payment => {
-        const loan = (activeProfile.data.loans || []).find(l => l.id === payment.loanId)!;
-        const isFullPayment = payment.amount >= loan.amount - 0.001;
-        return {
-            id: crypto.randomUUID(),
-            description: `${isFullPayment ? 'Liquidación de préstamo' : 'Pago parcial de préstamo'}: ${loan.name}`,
-            amount: payment.amount,
-            date: date,
-            type: 'income' as 'income',
-            paymentMethodId: paymentMethodId,
-            categoryId: prestamoCategory?.id,
-            loanId: payment.loanId,
-        };
-    });
-
-    const updatedTransactions = [...newTransactions, ...activeProfile.data.transactions];
-    
-    const paymentsMap = new Map(payments.map(p => [p.loanId, p.amount]));
-    
-    const updatedLoans = (activeProfile.data.loans || [])
-        .map(loan => {
-            if (paymentsMap.has(loan.id)) {
-                const paymentAmount = paymentsMap.get(loan.id)!;
-                const remaining = loan.amount - paymentAmount;
-                if (remaining > 0.001) { // Epsilon for float
-                    return { ...loan, amount: remaining };
-                }
-                return null; // Paid in full
-            }
-            return loan;
-        })
-        .filter((l): l is Loan => l !== null);
-
-    const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
-    if (validationError) {
-        alert(validationError);
-        return;
-    }
-
-    updateActiveProfileData(data => ({
-        ...data,
-        transactions: updatedTransactions,
-        loans: updatedLoans,
-    }));
-
-    setRepayingLoan(null);
-}, [activeProfile]);
-
-  const summaryData = useMemo(() => {
-    if (!activeProfile) {
-        return {
-            monthlyIncome: 0, monthlyExpenses: 0,
-            monthlyIncomeByBank: 0, monthlyIncomeByCash: 0,
-            monthlyExpensesByBank: 0, monthlyExpensesByCash: 0,
-            totalIncome: 0, totalExpenses: 0
-        };
-    }
-    const { transactions } = activeProfile.data;
-    
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    let monthlyIncome = 0;
-    let monthlyExpenses = 0;
-    const monthlyIncomeByMethod: Record<string, number> = {};
-    const monthlyExpensesByMethod: Record<string, number> = {};
-    let totalIncome = 0;
-    let totalExpenses = 0;
-
-    transactions.forEach(t => {
-        if (t.isGift) return;
-
-        const transactionDate = new Date(t.date);
-        const isInCurrentMonth = transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear;
-
-        // Define internal movements that should not be counted in summaries.
-        const isInternalExpense = t.transferId || t.patrimonioType === 'asset' || t.patrimonioType === 'loan' || t.patrimonioType === 'loan-addition';
-        const isInternalIncome = t.transferId || t.patrimonioType === 'liability' || t.patrimonioType === 'debt-addition' || t.patrimonioType === 'asset-spend';
-
-        // Total calculation
-        if (t.type === 'income') {
-            if (!isInternalIncome) {
-                totalIncome += t.amount;
-            }
-        } else { // expense
-            if (!isInternalExpense) {
-                totalExpenses += t.amount;
-            }
-        }
-
-        // Monthly Summary Calculation
-        if (isInCurrentMonth) {
-            if (t.type === 'income') {
-                if (!isInternalIncome) {
-                    monthlyIncome += t.amount;
-                    monthlyIncomeByMethod[t.paymentMethodId] = (monthlyIncomeByMethod[t.paymentMethodId] || 0) + t.amount;
-                }
-            } else { // expense
-                if (!isInternalExpense) {
-                    monthlyExpenses += t.amount;
-                    monthlyExpensesByMethod[t.paymentMethodId] = (monthlyExpensesByMethod[t.paymentMethodId] || 0) + t.amount;
-                }
-            }
-        }
-    });
-      
-    const monthlyIncomeByCash = monthlyIncomeByMethod[CASH_METHOD_ID] || 0;
-    const monthlyIncomeByBank = Object.entries(monthlyIncomeByMethod)
-        .filter(([id]) => id !== CASH_METHOD_ID)
-        .reduce((sum, [, amount]) => sum + amount, 0);
-
-    const monthlyExpensesByCash = monthlyExpensesByMethod[CASH_METHOD_ID] || 0;
-    const monthlyExpensesByBank = Object.entries(monthlyExpensesByMethod)
-        .filter(([id]) => id !== CASH_METHOD_ID)
-        .reduce((sum, [, amount]) => sum + amount, 0);
-
-    return {
-        monthlyIncome,
-        monthlyExpenses,
-        monthlyIncomeByBank,
-        monthlyIncomeByCash,
-        monthlyExpensesByBank,
-        monthlyExpensesByCash,
-        totalIncome,
-        totalExpenses,
-    };
-  }, [activeProfile]);
-
-  const { manualAssetsValue, totalLiabilities, totalLoans } = useMemo(() => {
-    if (!activeProfile) return { manualAssetsValue: 0, totalLiabilities: 0, totalLoans: 0 };
-    const manualAssetsValue = activeProfile.data.assets?.reduce((sum, asset) => sum + asset.value, 0) || 0;
-    const totalLiabilities = activeProfile.data.liabilities?.reduce((sum, liability) => sum + liability.amount, 0) || 0;
-    const totalLoans = activeProfile.data.loans?.reduce((sum, loan) => sum + loan.amount, 0) || 0;
-    return { manualAssetsValue, totalLiabilities, totalLoans };
-  }, [activeProfile]);
-
-  const savingsBySource = useMemo(() => {
-    if (!activeProfile) return {};
-    const result: Record<string, { total: number; name: string; color: string; }> = {};
-
-    (activeProfile.data.assets || []).forEach(asset => {
-        const sourceId = asset.sourceMethodId;
-        if (!sourceId) return; // Assets must have a source
-
-        if (!result[sourceId]) {
-            const sourceInfo = sourceId === CASH_METHOD_ID 
-                ? { name: 'Efectivo', color: '#008f39' }
-                : activeProfile.data.bankAccounts.find(b => b.id === sourceId);
-            
-            result[sourceId] = {
-                total: 0,
-                name: sourceInfo?.name || 'Fuente Desconocida',
-                color: sourceInfo?.color || '#64748b'
-            };
-        }
-        result[sourceId].total += asset.value;
-    });
-    return result;
-  }, [activeProfile]);
-  
-  const handleExportData = useCallback(() => {
-    if (!activeProfile) {
-      alert("No hay un perfil activo para exportar.");
-      return;
-    }
-
-    try {
-      const exportPayload = {
-        profile: activeProfile,
-        summary: {
-            balance,
-            cashBalance: balancesByMethod[CASH_METHOD_ID] || 0,
-            monthlyIncome: summaryData.monthlyIncome,
-            monthlyExpenses: summaryData.monthlyExpenses,
-            totalIncome: summaryData.totalIncome,
-            totalExpenses: summaryData.totalExpenses
-        },
-        balancesByMethod
-      };
-
-      const csvData = exportProfileToCsv(exportPayload);
-      const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      
-      const safeProfileName = activeProfile.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      const dateStr = new Date().toISOString().split('T')[0];
-      link.setAttribute("download", `exportacion_${safeProfileName}_${dateStr}.csv`);
-      
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error al exportar los datos:", error);
-      alert("Ocurrió un error al intentar exportar los datos. Por favor, inténtalo de nuevo.");
-    }
-  }, [activeProfile, balance, balancesByMethod, summaryData]);
-
-  const handleExportAllDataToJson = useCallback(async () => {
-    try {
-      const allData = {
-        profiles: profiles,
-        activeProfileId: activeProfileId,
-        theme: theme,
-      };
-  
-      const jsonString = JSON.stringify(allData, null, 2);
-      const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
-      
-      const now = new Date();
-      const months = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-      const month = months[now.getMonth()];
-      const day = String(now.getDate()).padStart(2, '0');
-      const year = String(now.getFullYear()).slice(-2);
-      const fileName = `CONTROL-${month}-${day}-${year}.json`;
-
-      // Use the Web Share API if available (for mobile devices like iOS)
-      if (navigator.share) {
-        const file = new File([blob], fileName, { type: 'application/json' });
-        try {
-          await navigator.share({
-            files: [file],
-            title: 'Copia de Seguridad de Ingresos',
-          });
-          return; // Exit after successful share
-        } catch (error) {
-          // This error is thrown if the user cancels the share dialog.
-          // We don't need to show an error message, just prevent fallback.
-          if ((error as DOMException).name === 'AbortError') {
-            return;
-          }
-          console.error("Error al usar la API de compartir:", error);
-          // If sharing fails for another reason, we can proceed to the fallback.
-        }
-      }
-      
-      // Fallback for browsers without Share API (Desktop, etc.)
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", fileName);
-      
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-    } catch (error) {
-      console.error("Error al exportar los datos a JSON:", error);
-      alert("Ocurrió un error al intentar exportar los datos. Por favor, inténtalo de nuevo.");
-    }
-  }, [profiles, activeProfileId, theme]);
-
-  const handleImportDataFromJson = useCallback((file: File) => {
-    if (!file) return;
-  
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result;
-      if (typeof result !== 'string') {
-        alert("Error al leer el archivo.");
-        return;
-      }
-      
-      if (!window.confirm("¿Estás seguro de que quieres importar estos datos? Se sobrescribirán todos los datos actuales. Esta acción no se puede deshacer.")) {
-        return;
-      }
-
-      try {
-        const data = JSON.parse(result);
-        
-        // Basic validation
-        if (!data.profiles || !Array.isArray(data.profiles) || typeof data.theme !== 'string') {
-            throw new Error("El archivo JSON no tiene el formato correcto.");
-        }
-        
-        // Data migration for older backups without new fields
-        const migratedProfiles = data.profiles.map((p: Profile) => ({
-            ...p,
-            data: {
-                ...p.data,
-                assets: p.data.assets || [],
-                liabilities: (p.data.liabilities || []).map((l: Liability) => ({
-                    ...l,
-                    originalAmount: (l as any).originalAmount || l.amount,
-                    details: l.details || '',
-                    initialAdditions: (l.initialAdditions || []).map((add: any) => ({
-                        ...add,
-                        id: add.id || crypto.randomUUID(),
-                    })),
-                })),
-                loans: (p.data.loans || []).map((l: Loan) => ({
-                    ...l,
-                    originalAmount: (l as any).originalAmount || l.amount,
-                    details: l.details || '',
-                    initialAdditions: (l.initialAdditions || []).map((add: any) => ({
-                      ...add,
-                      id: add.id || crypto.randomUUID()
-                    })),
-                })),
-            }
-        }));
-
-        setProfiles(migratedProfiles);
-        setActiveProfileId(data.activeProfileId);
-        setTheme(data.theme);
-        
-        // We must reload to ensure all state is correctly re-initialized from localStorage
-        window.location.reload();
-
-      } catch (error) {
-        console.error("Error al importar datos JSON:", error);
-        alert("Error: El archivo seleccionado no es un archivo de respaldo válido.");
-      }
-    };
-    reader.readAsText(file);
-  }, []);
-
-  const minDateForActions = useMemo(() => {
-    if (!activeProfile) return undefined;
-    const firstIncomeDate = findFirstIncomeDate(activeProfile.data.transactions);
-    return firstIncomeDate ? firstIncomeDate.toISOString().split('T')[0] : undefined;
-  }, [activeProfile]);
-
-  const handleNavigate = useCallback((page: Page) => {
-    setCurrentPage(page);
-    if (page === 'inicio') {
-        setActiveProfileId(null);
-    }
-  }, []);
-
-  const handleInitiateTransfer = useCallback((direction: 'deposit' | 'withdrawal') => {
-    setTransferDirection(direction);
-    setIsTransferModalOpen(true);
-  }, []);
-  
-  const handleSelectProfile = useCallback((profileId: string) => {
-    setActiveProfileId(profileId);
-    setCurrentPage('resumen');
-  }, []);
-  
-  const handleAddProfile = useCallback((name: string, countryCode: string, currency: string) => {
+    const handleAddProfile = useCallback((name: string, countryCode: string, currency: string) => {
     const newProfile: Profile = {
         id: crypto.randomUUID(),
         name,
@@ -1576,369 +867,718 @@ const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amoun
         currency,
         data: createDefaultProfileData(),
     };
-    setProfiles(prev => [...prev, newProfile]);
-    setActiveProfileId(newProfile.id);
+    setProfiles(prev => {
+        const newProfiles = [...prev, newProfile];
+        if (prev.length === 0) {
+            setActiveProfileId(newProfile.id);
+        }
+        return newProfiles;
+    });
     setIsProfileCreationModalOpen(false);
-    setCurrentPage('resumen');
   }, []);
 
-  const handleDeleteProfile = useCallback((profileId: string) => {
-    if (!window.confirm("¿Estás seguro de que quieres eliminar este perfil y todos sus datos? Esta acción no se puede deshacer.")) {
-        return;
-    }
-
-    setProfiles(prevProfiles => prevProfiles.filter(p => p.id !== profileId));
-
-    if (activeProfileId === profileId) {
-        setActiveProfileId(null);
-        setCurrentPage('inicio');
+  const handleDeleteProfile = useCallback((id: string) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este perfil y todos sus datos? Esta acción es irreversible.')) {
+        setProfiles(prev => {
+            const newProfiles = prev.filter(p => p.id !== id);
+            if (activeProfileId === id) {
+                setActiveProfileId(newProfiles[0]?.id || null);
+            }
+            return newProfiles;
+        });
     }
   }, [activeProfileId]);
   
-  const openAssetLiabilityModal = (type: 'asset' | 'liability' | 'loan') => {
-    setModalConfig({ type });
-    setIsAssetLiabilityModalOpen(true);
-  };
+  const handleExportData = useCallback(() => {
+    if (!activeProfile) return;
+    
+    const cashBalance = balancesByMethod[CASH_METHOD_ID] || 0;
+    
+    // Recalculate summaries for export
+    const { totalIncome, totalExpenses, monthlyIncome, monthlyExpenses } = activeProfile.data.transactions.reduce((acc, t) => {
+        if (t.isGift || t.transferId || t.patrimonioId) return acc;
+        const date = new Date(t.date);
+        const isCurrentMonth = date.getMonth() === new Date().getMonth() && date.getFullYear() === new Date().getFullYear();
+        if (t.type === 'income') {
+            acc.totalIncome += t.amount;
+            if (isCurrentMonth) acc.monthlyIncome += t.amount;
+        } else {
+            acc.totalExpenses += t.amount;
+            if (isCurrentMonth) acc.monthlyExpenses += t.amount;
+        }
+        return acc;
+    }, { totalIncome: 0, totalExpenses: 0, monthlyIncome: 0, monthlyExpenses: 0 });
+
+    const summary: ExportSummary = {
+      balance,
+      cashBalance,
+      monthlyIncome,
+      monthlyExpenses,
+      totalIncome,
+      totalExpenses,
+    };
+    
+    const payload: ExportPayload = {
+      profile: activeProfile,
+      summary,
+      balancesByMethod,
+    };
+    
+    const csvContent = exportProfileToCsv(payload);
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `export_${activeProfile.name.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [activeProfile, balance, balancesByMethod]);
+
+  const handleExportAllDataToJson = useCallback(() => {
+    const dataToExport = { profiles, activeProfileId, theme, fabPosition };
+    const jsonString = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'income_tracker_backup.json');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [profiles, activeProfileId, theme, fabPosition]);
+
+  const handleImportDataFromJson = useCallback((file: File) => {
+    if (!window.confirm('¿Estás seguro de que quieres importar estos datos? Esto sobreescribirá todos los datos actuales.')) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const result = event.target?.result;
+            if (typeof result === 'string') {
+                const data = JSON.parse(result);
+                if (data.profiles && Array.isArray(data.profiles)) {
+                    setProfiles(data.profiles);
+                    setActiveProfileId(data.activeProfileId || null);
+                    setTheme(data.theme || Theme.DARK);
+                    setFabPosition(data.fabPosition || getDefaultFabPosition());
+                    alert('Datos importados con éxito.');
+                    if (!data.activeProfileId) setCurrentPage('inicio');
+                } else {
+                    alert('El archivo de importación no tiene el formato correcto.');
+                }
+            }
+        } catch (error) {
+            console.error('Error al importar datos:', error);
+            alert('Hubo un error al procesar el archivo.');
+        }
+    };
+    reader.readAsText(file);
+  }, [getDefaultFabPosition]);
+
+    const { monthlyIncome, monthlyExpenses, monthlyIncomeByBank, monthlyIncomeByCash, monthlyExpensesByBank, monthlyExpensesByCash, totalIncome, totalExpenses, manualAssetsValue, totalLiabilitiesValue, totalLoansValue, savingsBySource } = useMemo(() => {
+    if (!activeProfile) return { monthlyIncome: 0, monthlyExpenses: 0, monthlyIncomeByBank: 0, monthlyIncomeByCash: 0, monthlyExpensesByBank: 0, monthlyExpensesByCash: 0, totalIncome: 0, totalExpenses: 0, manualAssetsValue: 0, totalLiabilitiesValue: 0, totalLoansValue: 0, savingsBySource: {} };
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let mi = 0, me = 0, mib = 0, mic = 0, meb = 0, mec = 0, ti = 0, te = 0;
+    
+    const ahorroCategoryId = activeProfile.data.categories.find(c => c.name.toLowerCase() === 'ahorro')?.id;
+
+    for (const t of activeProfile.data.transactions) {
+        if (t.isGift) continue;
+        const isTransfer = !!t.transferId;
+        const isSaving = t.categoryId === ahorroCategoryId;
+        const isPatrimonioMovement = t.patrimonioType === 'asset' || t.patrimonioType === 'liability' || t.patrimonioType === 'loan' || t.patrimonioType === 'debt-payment' || t.patrimonioType === 'loan-repayment' || t.patrimonioType === 'loan-addition' || t.patrimonioType === 'debt-addition';
+        const isFromSavings = t.patrimonioType === 'asset-spend';
+
+        const date = new Date(t.date);
+        const isCurrentMonth = date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+        const isBank = t.paymentMethodId !== CASH_METHOD_ID;
+        
+        if (t.type === 'income') {
+            if (!isTransfer && !isPatrimonioMovement && !isFromSavings) {
+                ti += t.amount;
+                if (isCurrentMonth) {
+                    mi += t.amount;
+                    if (isBank) mib += t.amount; else mic += t.amount;
+                }
+            }
+        } else { // expense
+            if (!isTransfer && !isSaving && !isPatrimonioMovement) {
+                te += t.amount;
+                if (isCurrentMonth) {
+                    me += t.amount;
+                    if (isBank) meb += t.amount; else mec += t.amount;
+                }
+            }
+        }
+    }
+
+    const mav = (activeProfile.data.assets || []).reduce((sum, asset) => sum + asset.value, 0);
+    const tlv = (activeProfile.data.liabilities || []).reduce((sum, liability) => sum + liability.amount, 0);
+    const tlov = (activeProfile.data.loans || []).reduce((sum, loan) => sum + loan.amount, 0);
+
+    const sbs: Record<string, { total: number, name: string, color: string }> = {};
+    const sources = [{ id: CASH_METHOD_ID, name: 'Efectivo', color: '#008f39' }, ...activeProfile.data.bankAccounts];
+    (activeProfile.data.assets || []).forEach(asset => {
+        const sourceId = asset.sourceMethodId || 'unknown';
+        if (!sbs[sourceId]) {
+            const sourceInfo = sources.find(s => s.id === sourceId);
+            sbs[sourceId] = { total: 0, name: sourceInfo?.name || 'Desconocido', color: sourceInfo?.color || '#64748b' };
+        }
+        sbs[sourceId].total += asset.value;
+    });
+
+    return { monthlyIncome: mi, monthlyExpenses: me, monthlyIncomeByBank: mib, monthlyIncomeByCash: mic, monthlyExpensesByBank: meb, monthlyExpensesByCash: mec, totalIncome: ti, totalExpenses: te, manualAssetsValue: mav, totalLiabilitiesValue: tlv, totalLoansValue: tlov, savingsBySource: sbs };
+  }, [activeProfile]);
+
+  const minDateForExpenses = useMemo(() => {
+    if (!activeProfile) return undefined;
+    const firstIncomeDate = findFirstIncomeDate(activeProfile.data.transactions);
+    return firstIncomeDate ? firstIncomeDate.toISOString().split('T')[0] : undefined;
+  }, [activeProfile]);
+  
+    const handlePayDebts = useCallback((payments: { liabilityId: string, amount: number }[], paymentMethodId: string) => {
+        if (!activeProfile) return;
+        
+        const newTransactions: Transaction[] = [];
+        let updatedLiabilities = [...(activeProfile.data.liabilities || [])];
+
+        for (const payment of payments) {
+            const liability = updatedLiabilities.find(l => l.id === payment.liabilityId);
+            if (!liability) continue;
+
+            const newTransaction: Transaction = {
+                id: crypto.randomUUID(),
+                description: `Pago Deuda: ${liability.name}`,
+                amount: payment.amount,
+                date: new Date().toISOString().split('T')[0],
+                type: 'expense',
+                paymentMethodId: paymentMethodId,
+                liabilityId: liability.id,
+            };
+            newTransactions.push(newTransaction);
+            updatedLiabilities = updatedLiabilities.map(l => l.id === liability.id ? { ...l, amount: l.amount - payment.amount } : l);
+        }
+
+        const updatedTransactions = [...newTransactions, ...activeProfile.data.transactions];
+        const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
+        if (validationError) {
+            alert(validationError);
+            return;
+        }
+
+        updateActiveProfileData(data => ({ ...data, liabilities: updatedLiabilities, transactions: updatedTransactions }));
+        setPayingDebt(null);
+    }, [activeProfile]);
+
+    const handleReceiveLoanPayments = useCallback((payments: { loanId: string, amount: number }[], paymentMethodId: string, date: string) => {
+        if (!activeProfile) return;
+
+        const newTransactions: Transaction[] = [];
+        let updatedLoans = [...(activeProfile.data.loans || [])];
+
+        for (const payment of payments) {
+            const loan = updatedLoans.find(l => l.id === payment.loanId);
+            if (!loan) continue;
+
+            const newTransaction: Transaction = {
+                id: crypto.randomUUID(),
+                description: `Reembolso Préstamo: ${loan.name}`,
+                amount: payment.amount,
+                date: date,
+                type: 'income',
+                paymentMethodId: paymentMethodId,
+                loanId: loan.id,
+            };
+            newTransactions.push(newTransaction);
+            updatedLoans = updatedLoans.map(l => l.id === loan.id ? { ...l, amount: l.amount - payment.amount } : l);
+        }
+
+        const updatedTransactions = [...newTransactions, ...activeProfile.data.transactions];
+        const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
+        if (validationError) {
+            alert(validationError);
+            return;
+        }
+
+        updateActiveProfileData(data => ({ ...data, loans: updatedLoans, transactions: updatedTransactions }));
+        setRepayingLoan(null);
+    }, [activeProfile]);
+
+    const handleAddValueToLoan = useCallback((loanId: string, amount: number, sourceMethodId: string, date: string, isInitial: boolean, details: string) => {
+        if (!activeProfile) return;
+        
+        let updatedLoans = [...(activeProfile.data.loans || [])];
+        let updatedTransactions = [...activeProfile.data.transactions];
+        
+        const loan = updatedLoans.find(l => l.id === loanId);
+        if (!loan) return;
+
+        if (isInitial) {
+            updatedLoans = updatedLoans.map(l => l.id === loanId ? {
+                ...l,
+                amount: l.amount + amount,
+                originalAmount: l.originalAmount + amount,
+                initialAdditions: [...(l.initialAdditions || []), { id: crypto.randomUUID(), amount, date, details }]
+            } : l);
+        } else {
+             const newTransaction: Transaction = {
+                id: crypto.randomUUID(),
+                description: `Ampliación Préstamo: ${loan.name}`,
+                amount: amount,
+                date: date,
+                type: 'expense',
+                paymentMethodId: sourceMethodId,
+                patrimonioId: loanId,
+                patrimonioType: 'loan-addition',
+                details,
+            };
+            updatedTransactions = [newTransaction, ...updatedTransactions];
+            const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
+            if (validationError) {
+                alert(validationError);
+                return;
+            }
+            updatedLoans = updatedLoans.map(l => l.id === loanId ? { ...l, amount: l.amount + amount, originalAmount: l.originalAmount + amount } : l);
+        }
+
+        updateActiveProfileData(data => ({ ...data, loans: updatedLoans, transactions: updatedTransactions }));
+        setAddingValueToLoan(null);
+    }, [activeProfile]);
+
+    const handleUpdateLoan = useCallback((loanId: string, name: string, details: string, newOriginalAmountStr: string) => {
+        updateActiveProfileData(data => {
+            const updatedLoans = (data.loans || []).map(loan => {
+                if (loan.id === loanId) {
+                    const paidAmount = loan.originalAmount - loan.amount;
+                    const newOriginalAmount = parseFloat(newOriginalAmountStr.replace(',', '.')) || loan.originalAmount;
+                    return {
+                        ...loan,
+                        name,
+                        details,
+                        originalAmount: newOriginalAmount,
+                        amount: newOriginalAmount - paidAmount,
+                    };
+                }
+                return loan;
+            });
+            return { ...data, loans: updatedLoans };
+        });
+        setEditingLoan(null);
+    }, []);
+    
+    const handleUpdateLoanAddition = useCallback((loanId: string, additionId: string, newAmount: number, newDetails: string) => {
+        updateActiveProfileData(data => {
+            const updatedLoans = (data.loans || []).map(loan => {
+                if (loan.id === loanId) {
+                    let amountDifference = 0;
+                    const updatedAdditions = (loan.initialAdditions || []).map(add => {
+                        if (add.id === additionId) {
+                            amountDifference = newAmount - add.amount;
+                            return { ...add, amount: newAmount, details: newDetails };
+                        }
+                        return add;
+                    });
+                    return {
+                        ...loan,
+                        amount: loan.amount + amountDifference,
+                        originalAmount: loan.originalAmount + amountDifference,
+                        initialAdditions: updatedAdditions
+                    };
+                }
+                return loan;
+            });
+            return { ...data, loans: updatedLoans };
+        });
+        setEditingLoanAddition(null);
+    }, []);
+
+    const handleAddValueToDebt = useCallback((debtId: string, amount: number, destinationMethodId: string, date: string, isInitial: boolean, details: string) => {
+        if (!activeProfile) return;
+        
+        let updatedLiabilities = [...(activeProfile.data.liabilities || [])];
+        let updatedTransactions = [...activeProfile.data.transactions];
+        
+        const debt = updatedLiabilities.find(l => l.id === debtId);
+        if (!debt) return;
+
+        if (isInitial) {
+             updatedLiabilities = updatedLiabilities.map(l => l.id === debtId ? {
+                ...l,
+                amount: l.amount + amount,
+                originalAmount: l.originalAmount + amount,
+                initialAdditions: [...(l.initialAdditions || []), { id: crypto.randomUUID(), amount, date, details }]
+            } : l);
+        } else {
+             const newTransaction: Transaction = {
+                id: crypto.randomUUID(),
+                description: `Ampliación Deuda: ${debt.name}`,
+                amount: amount,
+                date: date,
+                type: 'income',
+                paymentMethodId: destinationMethodId,
+                patrimonioId: debtId,
+                patrimonioType: 'debt-addition',
+                details,
+            };
+            updatedTransactions = [newTransaction, ...updatedTransactions];
+            const validationError = validateTransactionChange(updatedTransactions, activeProfile.data.bankAccounts);
+            if (validationError) {
+                alert(validationError);
+                return;
+            }
+            updatedLiabilities = updatedLiabilities.map(l => l.id === debtId ? { ...l, amount: l.amount + amount, originalAmount: l.originalAmount + amount } : l);
+        }
+
+        updateActiveProfileData(data => ({ ...data, liabilities: updatedLiabilities, transactions: updatedTransactions }));
+        setAddingValueToDebt(null);
+    }, [activeProfile]);
+    
+    const handleUpdateDebt = useCallback((debtId: string, name: string, details: string, newOriginalAmountStr: string) => {
+        updateActiveProfileData(data => {
+            const updatedLiabilities = (data.liabilities || []).map(debt => {
+                if (debt.id === debtId) {
+                    const paidAmount = debt.originalAmount - debt.amount;
+                    const newOriginalAmount = parseFloat(newOriginalAmountStr.replace(',', '.')) || debt.originalAmount;
+                    return {
+                        ...debt,
+                        name,
+                        details,
+                        originalAmount: newOriginalAmount,
+                        amount: newOriginalAmount - paidAmount,
+                    };
+                }
+                return debt;
+            });
+            return { ...data, liabilities: updatedLiabilities };
+        });
+        setEditingDebt(null);
+    }, []);
+    
+    const handleUpdateDebtAddition = useCallback((debtId: string, additionId: string, newAmount: number, newDetails: string) => {
+        updateActiveProfileData(data => {
+            const updatedLiabilities = (data.liabilities || []).map(debt => {
+                if (debt.id === debtId) {
+                    let amountDifference = 0;
+                    const updatedAdditions = (debt.initialAdditions || []).map(add => {
+                        if (add.id === additionId) {
+                            amountDifference = newAmount - add.amount;
+                            return { ...add, amount: newAmount, details: newDetails };
+                        }
+                        return add;
+                    });
+                    return {
+                        ...debt,
+                        amount: debt.amount + amountDifference,
+                        originalAmount: debt.originalAmount + amountDifference,
+                        initialAdditions: updatedAdditions
+                    };
+                }
+                return debt;
+            });
+            return { ...data, liabilities: updatedLiabilities };
+        });
+        setEditingDebtAddition(null);
+    }, []);
+
+    const menuItems: MenuItem[] = [
+        { label: 'Gasto', icon: <ArrowDownIcon className="w-6 h-6"/>, onClick: () => setCurrentPage('gastos'), color: '#ef4444' },
+        { label: 'Ingreso', icon: <ArrowUpIcon className="w-6 h-6"/>, onClick: () => setCurrentPage('ingresos'), color: '#008f39' },
+        { label: 'Ahorro', icon: <ScaleIcon className="w-6 h-6"/>, onClick: () => { setModalConfig({ type: 'asset' }); setIsAssetLiabilityModalOpen(true); }, color: '#22c55e' },
+        { label: 'Deuda', icon: <ScaleIcon className="w-6 h-6"/>, onClick: () => { setModalConfig({ type: 'liability' }); setIsAssetLiabilityModalOpen(true); }, color: '#ef4444' },
+        { label: 'Préstamo', icon: <ScaleIcon className="w-6 h-6"/>, onClick: () => { setModalConfig({ type: 'loan' }); setIsAssetLiabilityModalOpen(true); }, color: '#3b82f6' }
+    ];
+
+    if (!activeProfileId || !activeProfile) {
+        return (
+          <div className={`app-container ${theme}`}>
+            <Inicio
+              profiles={profiles}
+              onSelectProfile={(id) => {
+                setActiveProfileId(id);
+                setCurrentPage('resumen');
+              }}
+              onAddProfile={() => setIsProfileCreationModalOpen(true)}
+              onDeleteProfile={handleDeleteProfile}
+            />
+            {isProfileCreationModalOpen && (
+              <ProfileCreationModal
+                isOpen={isProfileCreationModalOpen}
+                onClose={() => setIsProfileCreationModalOpen(false)}
+                onAddProfile={handleAddProfile}
+              />
+            )}
+          </div>
+        );
+    }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-500 font-sans">
-      {currentPage === 'inicio' || !activeProfile ? (
-        <Inicio 
-          profiles={profiles}
-          onSelectProfile={handleSelectProfile}
-          onAddProfile={() => setIsProfileCreationModalOpen(true)}
-          onDeleteProfile={handleDeleteProfile}
-        />
-      ) : (
-        <>
-          <main className="container mx-auto p-4 md:p-8 max-w-3xl pb-20">
-            {currentPage === 'resumen' && (
-              <Resumen
+    <div className={`app-container ${theme}`}>
+      <div className="flex flex-col min-h-screen">
+        <Header theme={theme} onToggleTheme={handleToggleTheme} />
+        <main className="flex-grow container mx-auto px-4 py-6 pb-24 max-w-3xl">
+          { (currentPage === 'inicio' || currentPage === 'resumen') && <Resumen 
+              profile={activeProfile}
+              balance={balance}
+              balancesByMethod={balancesByMethod}
+              onDeleteTransaction={handleDeleteTransaction}
+              onInitiateDeposit={() => {setTransferDirection('deposit'); setIsTransferModalOpen(true);}}
+              onInitiateWithdrawal={() => {setTransferDirection('withdrawal'); setIsTransferModalOpen(true);}}
+              monthlyIncome={monthlyIncome}
+              monthlyExpenses={monthlyExpenses}
+              monthlyIncomeByBank={monthlyIncomeByBank}
+              monthlyIncomeByCash={monthlyIncomeByCash}
+              monthlyExpensesByBank={monthlyExpensesByBank}
+              monthlyExpensesByCash={monthlyExpensesByCash}
+              totalIncome={totalIncome}
+              totalExpenses={totalExpenses}
+          /> }
+          { currentPage === 'ajustes' && <Ajustes 
+              theme={theme}
+              onToggleTheme={handleToggleTheme}
+              categories={activeProfile.data.categories}
+              onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              bankAccounts={activeProfile.data.bankAccounts}
+              onAddBankAccount={handleAddBankAccount}
+              onUpdateBankAccount={handleUpdateBankAccount}
+              onDeleteBankAccount={handleDeleteBankAccount}
+              onExportData={handleExportData}
+              onExportAllDataToJson={handleExportAllDataToJson}
+              onImportDataFromJson={handleImportDataFromJson}
+              onManageFixedExpenses={() => setIsFixedExpenseModalOpen(true)}
+          /> }
+          { currentPage === 'ingresos' && <Ingresos
+              profile={activeProfile}
+              balance={balance}
+              balancesByMethod={balancesByMethod}
+              onAddTransaction={handleAddTransaction}
+              onNavigate={setCurrentPage}
+              onAddBankAccount={handleAddBankAccount}
+              onUpdateBankAccount={handleUpdateBankAccount}
+              onDeleteBankAccount={handleDeleteBankAccount}
+              onInitiateDeposit={() => {setTransferDirection('deposit'); setIsTransferModalOpen(true);}}
+              onInitiateWithdrawal={() => {setTransferDirection('withdrawal'); setIsTransferModalOpen(true);}}
+          /> }
+           { currentPage === 'gastos' && <Gastos
+              profile={activeProfile}
+              balance={balance}
+              balancesByMethod={balancesByMethod}
+              onAddTransaction={handleAddTransaction}
+              onNavigate={setCurrentPage}
+              onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onAddBankAccount={handleAddBankAccount}
+              onUpdateBankAccount={handleUpdateBankAccount}
+              onDeleteBankAccount={handleDeleteBankAccount}
+              onAddFixedExpense={handleAddFixedExpense}
+              onDeleteFixedExpense={handleDeleteFixedExpense}
+              minDateForExpenses={minDateForExpenses}
+              onInitiateDeposit={() => {setTransferDirection('deposit'); setIsTransferModalOpen(true);}}
+              onInitiateWithdrawal={() => {setTransferDirection('withdrawal'); setIsTransferModalOpen(true);}}
+              onOpenGiftModal={setGiftingFixedExpense}
+          /> }
+           { currentPage === 'patrimonio' && <Patrimonio
                 profile={activeProfile}
-                balance={balance} 
-                balancesByMethod={balancesByMethod}
-                onDeleteTransaction={handleDeleteTransaction}
-                onInitiateDeposit={() => handleInitiateTransfer('deposit')}
-                onInitiateWithdrawal={() => handleInitiateTransfer('withdrawal')}
-                monthlyIncome={summaryData.monthlyIncome}
-                monthlyExpenses={summaryData.monthlyExpenses}
-                monthlyIncomeByBank={summaryData.monthlyIncomeByBank}
-                monthlyIncomeByCash={summaryData.monthlyIncomeByCash}
-                monthlyExpensesByBank={summaryData.monthlyExpensesByBank}
-                monthlyExpensesByCash={summaryData.monthlyExpensesByCash}
-                totalIncome={summaryData.totalIncome}
-                totalExpenses={summaryData.totalExpenses}
-              />
-            )}
-            {currentPage === 'ajustes' && (
-              <Ajustes 
-                theme={theme} 
-                onToggleTheme={handleToggleTheme}
-                categories={activeProfile.data.categories}
-                onAddCategory={handleAddCategory}
-                onUpdateCategory={handleUpdateCategory}
-                onDeleteCategory={handleDeleteCategory}
+                manualAssetsValue={manualAssetsValue}
+                totalLiabilities={totalLiabilitiesValue}
+                totalLoans={totalLoansValue}
+                assets={activeProfile.data.assets || []}
+                liabilities={activeProfile.data.liabilities || []}
+                loans={activeProfile.data.loans || []}
                 bankAccounts={activeProfile.data.bankAccounts}
-                onAddBankAccount={handleAddBankAccount}
-                onUpdateBankAccount={handleUpdateBankAccount}
-                onDeleteBankAccount={handleDeleteBankAccount}
-                onExportData={handleExportData}
-                onExportAllDataToJson={handleExportAllDataToJson}
-                onImportDataFromJson={handleImportDataFromJson}
-                onManageFixedExpenses={() => setIsFixedExpenseModalOpen(true)}
-              />
-            )}
-            {currentPage === 'ingresos' && (
-              <Ingresos
+                onDeleteAsset={() => {}}
+                onDeleteLiability={() => {}}
+                onDeleteLoan={() => {}}
+                onNavigate={setCurrentPage}
+                onOpenSpendSavingsModal={() => setIsSpendSavingsModalOpen(true)}
+           /> }
+            { currentPage === 'prestamos' && <Loans
                 profile={activeProfile}
-                balance={balance}
-                balancesByMethod={balancesByMethod}
-                onAddTransaction={handleAddTransaction} 
-                onNavigate={handleNavigate}
-                onAddBankAccount={handleAddBankAccount}
-                onUpdateBankAccount={handleUpdateBankAccount}
-                onDeleteBankAccount={handleDeleteBankAccount}
-                onInitiateDeposit={() => handleInitiateTransfer('deposit')}
-                onInitiateWithdrawal={() => handleInitiateTransfer('withdrawal')}
-              />
-            )}
-            {currentPage === 'gastos' && (
-              <Gastos
+                loans={activeProfile.data.loans || []}
+                transactions={activeProfile.data.transactions}
+                onOpenLoanRepaymentModal={setRepayingLoan}
+                onOpenAddValueToLoanModal={setAddingValueToLoan}
+                onOpenEditLoanModal={setEditingLoan}
+                onOpenLoanDetailModal={setViewingLoan}
+                onNavigate={setCurrentPage}
+                currency={activeProfile.currency}
+            /> }
+            { currentPage === 'deudas' && <Deudas
                 profile={activeProfile}
-                balance={balance}
-                balancesByMethod={balancesByMethod}
-                onAddTransaction={handleAddTransaction} 
-                onNavigate={handleNavigate}
-                onAddCategory={handleAddCategory}
-                onUpdateCategory={handleUpdateCategory}
-                onDeleteCategory={handleDeleteCategory}
-                onAddBankAccount={handleAddBankAccount}
-                onUpdateBankAccount={handleUpdateBankAccount}
-                onDeleteBankAccount={handleDeleteBankAccount}
-                onAddFixedExpense={handleAddFixedExpense}
-                onDeleteFixedExpense={handleDeleteFixedExpense}
-                minDateForExpenses={minDateForActions}
-                onInitiateDeposit={() => handleInitiateTransfer('deposit')}
-                onInitiateWithdrawal={() => handleInitiateTransfer('withdrawal')}
-                onOpenGiftModal={setGiftingFixedExpense}
-              />
-            )}
-            {currentPage === 'patrimonio' && (
-                <Patrimonio
-                    profile={activeProfile}
-                    manualAssetsValue={manualAssetsValue}
-                    totalLiabilities={totalLiabilities}
-                    totalLoans={totalLoans}
-                    assets={activeProfile.data.assets || []}
-                    liabilities={activeProfile.data.liabilities || []}
-                    loans={activeProfile.data.loans || []}
-                    bankAccounts={activeProfile.data.bankAccounts || []}
-                    onDeleteAsset={handleDeleteAsset}
-                    onDeleteLiability={handleDeleteLiability}
-                    onDeleteLoan={handleDeleteLoan}
-                    onNavigate={handleNavigate}
-                    onOpenSpendSavingsModal={() => setIsSpendSavingsModalOpen(true)}
-                />
-            )}
-            {currentPage === 'ahorros' && (
-                <Ahorros
-                    profile={activeProfile}
-                    savingsBySource={savingsBySource}
-                    onNavigate={handleNavigate}
-                    onOpenSpendSavingsModal={() => setIsSpendSavingsModalOpen(true)}
-                    currency={activeProfile.currency}
-                    manualAssetsValue={manualAssetsValue}
-                />
-            )}
-            {currentPage === 'prestamos' && (
-                <Loans
-                    profile={activeProfile}
-                    loans={activeProfile.data.loans || []}
-                    transactions={activeProfile.data.transactions || []}
-                    onOpenLoanRepaymentModal={(loan) => setRepayingLoan(loan)}
-                    onOpenAddValueToLoanModal={(loan) => setAddingValueToLoan(loan)}
-                    onOpenEditLoanModal={(loan) => setEditingLoan(loan)}
-                    onOpenLoanDetailModal={(loan) => setViewingLoan(loan)}
-                    onNavigate={handleNavigate}
-                    currency={activeProfile.currency}
-                />
-            )}
-            {currentPage === 'deudas' && (
-                <Deudas
-                    profile={activeProfile}
-                    liabilities={activeProfile.data.liabilities || []}
-                    onOpenDebtPaymentModal={(debt) => setPayingDebt(debt)}
-                    onOpenAddValueToDebtModal={(debt) => setAddingValueToDebt(debt)}
-                    onOpenEditDebtModal={(debt) => setEditingDebt(debt)}
-                    onOpenDebtDetailModal={(debt) => setViewingDebt(debt)}
-                    onNavigate={handleNavigate}
-                    currency={activeProfile.currency}
-                />
-            )}
-          </main>
-          
-          {currentPage === 'resumen' && (
-            <FloatingActionButton
-              buttonClass="bg-gradient-to-br from-[#008f39] to-green-400"
-              ringColorClass="focus:ring-[#008f39]/50"
-              position={fabPosition}
-              onPositionChange={setFabPosition}
-              menuItems={[
-                {
-                  label: 'Añadir Ingreso',
-                  icon: <ArrowUpIcon className="w-6 h-6" />,
-                  onClick: () => handleNavigate('ingresos'),
-                  color: '#008f39',
-                },
-                {
-                  label: 'Añadir Gasto',
-                  icon: <ArrowDownIcon className="w-6 h-6" />,
-                  onClick: () => handleNavigate('gastos'),
-                  color: '#ef4444',
-                },
-              ]}
-            />
-          )}
-
-          {currentPage === 'patrimonio' && (
-            <FloatingActionButton
-              buttonClass="bg-gradient-to-br from-blue-500 to-cyan-400"
-              ringColorClass="focus:ring-blue-500/50"
-              position={fabPosition}
-              onPositionChange={setFabPosition}
-              menuItems={[
-                {
-                    label: 'Añadir Ahorro',
-                    icon: <ArrowUpIcon className="w-6 h-6" />,
-                    onClick: () => openAssetLiabilityModal('asset'),
-                    color: '#22c55e',
-                },
-                {
-                    label: 'Añadir Préstamo',
-                    icon: <ScaleIcon className="w-6 h-6" />,
-                    onClick: () => openAssetLiabilityModal('loan'),
-                    color: '#3b82f6',
-                },
-                {
-                    label: 'Añadir Deuda',
-                    icon: <ArrowDownIcon className="w-6 h-6" />,
-                    onClick: () => openAssetLiabilityModal('liability'),
-                    color: '#ef4444'
-                },
-              ]}
-            />
-          )}
-
-          <BottomNav currentPage={currentPage} onNavigate={handleNavigate} />
-        </>
-      )}
-      {activeProfile && <TransferModal
-        isOpen={isTransferModalOpen}
-        onClose={() => {
-            setIsTransferModalOpen(false);
-            setTransferDirection(null);
-        }}
-        balancesByMethod={balancesByMethod}
-        bankAccounts={activeProfile.data.bankAccounts}
-        transactions={activeProfile.data.transactions}
-        onAddTransfer={handleAddTransfer}
-        initialDirection={transferDirection}
-        currency={activeProfile.currency}
-      />}
-      <ProfileCreationModal 
-        isOpen={isProfileCreationModalOpen}
-        onClose={() => setIsProfileCreationModalOpen(false)}
-        onAddProfile={handleAddProfile}
-      />
-      {activeProfile && <FixedExpenseModal
-        isOpen={isFixedExpenseModalOpen}
-        onClose={() => setIsFixedExpenseModalOpen(false)}
-        fixedExpenses={activeProfile.data.fixedExpenses}
-        transactions={activeProfile.data.transactions}
-        categories={activeProfile.data.categories}
-        onAddFixedExpense={handleAddFixedExpense}
-        onDeleteFixedExpense={handleDeleteFixedExpense}
-        currency={activeProfile.currency}
-        onAddCategory={handleAddCategory}
-        onUpdateCategory={handleUpdateCategory}
-        onDeleteCategory={handleDeleteCategory}
-      />}
-      {modalConfig && activeProfile && <AssetLiabilityModal
-        isOpen={isAssetLiabilityModalOpen}
-        onClose={() => setIsAssetLiabilityModalOpen(false)}
-        onSaveLiability={handleSaveLiability}
-        onSaveLoan={handleSaveLoan}
-        onCreateSaving={handleCreateSaving}
-        config={modalConfig}
-        currency={activeProfile.currency}
-        bankAccounts={activeProfile.data.bankAccounts}
-        balancesByMethod={balancesByMethod}
-        minDate={minDateForActions}
-      />}
-      {activeProfile && <SpendSavingsModal
-        isOpen={isSpendSavingsModalOpen}
-        onClose={() => setIsSpendSavingsModalOpen(false)}
-        onSpend={handleSpendFromSavings}
-        savingsBySource={savingsBySource}
-        currency={activeProfile.currency}
-        categories={activeProfile.data.categories}
-        onAddCategory={handleAddCategory}
-        onUpdateCategory={handleUpdateCategory}
-        onDeleteCategory={handleDeleteCategory}
-      />}
-      {activeProfile && <DebtPaymentModal
-        isOpen={!!payingDebt}
-        onClose={() => setPayingDebt(null)}
-        liability={payingDebt}
-        bankAccounts={activeProfile.data.bankAccounts || []}
-        balancesByMethod={balancesByMethod}
-        onPayDebts={handlePayDebts}
-        currency={activeProfile.currency}
-      />}
-      {activeProfile && <LoanRepaymentModal
-        isOpen={!!repayingLoan}
-        onClose={() => setRepayingLoan(null)}
-        loan={repayingLoan}
-        bankAccounts={activeProfile.data.bankAccounts || []}
-        balancesByMethod={balancesByMethod}
-        onReceiveLoanPayments={handleReceiveLoanPayments}
-        currency={activeProfile.currency}
-      />}
-      {activeProfile && <AddValueToLoanModal
-        isOpen={!!addingValueToLoan}
-        onClose={() => setAddingValueToLoan(null)}
-        loan={addingValueToLoan}
-        bankAccounts={activeProfile.data.bankAccounts || []}
-        balancesByMethod={balancesByMethod}
-        onAddValue={handleAddValueToLoan}
-        currency={activeProfile.currency}
-      />}
-      {activeProfile && <EditLoanModal
-          isOpen={!!editingLoan}
-          onClose={() => setEditingLoan(null)}
-          loan={editingLoan}
-          onUpdateLoan={handleUpdateLoanDetails}
-          currency={activeProfile.currency}
-      />}
-      {activeProfile && <LoanDetailModal
-          isOpen={!!viewingLoan}
-          onClose={() => setViewingLoan(null)}
-          loan={viewingLoan}
-          transactions={activeProfile.data.transactions || []}
-          bankAccounts={activeProfile.data.bankAccounts || []}
-          currency={activeProfile.currency}
-          onOpenEditLoanAdditionModal={(loan, addition) => setEditingLoanAddition({ loan, addition })}
-      />}
-      {activeProfile && <EditLoanAdditionModal
-          isOpen={!!editingLoanAddition}
-          onClose={() => setEditingLoanAddition(null)}
-          data={editingLoanAddition}
-          onUpdate={handleUpdateLoanAddition}
-          currency={activeProfile.currency}
-      />}
-      {/* New Debt Modals */}
-      {activeProfile && <AddValueToDebtModal
-        isOpen={!!addingValueToDebt}
-        onClose={() => setAddingValueToDebt(null)}
-        debt={addingValueToDebt}
-        bankAccounts={activeProfile.data.bankAccounts || []}
-        balancesByMethod={balancesByMethod}
-        onAddValue={handleAddValueToDebt}
-        currency={activeProfile.currency}
-      />}
-      {activeProfile && <EditDebtModal
-          isOpen={!!editingDebt}
-          onClose={() => setEditingDebt(null)}
-          debt={editingDebt}
-          onUpdateDebt={handleUpdateDebtDetails}
-          currency={activeProfile.currency}
-      />}
-      {activeProfile && <DebtDetailModal
-          isOpen={!!viewingDebt}
-          onClose={() => setViewingDebt(null)}
-          debt={viewingDebt}
-          transactions={activeProfile.data.transactions || []}
-          bankAccounts={activeProfile.data.bankAccounts || []}
-          currency={activeProfile.currency}
-          onOpenEditDebtAdditionModal={(debt, addition) => setEditingDebtAddition({ debt, addition })}
-      />}
-      {activeProfile && <EditDebtAdditionModal
-          isOpen={!!editingDebtAddition}
-          onClose={() => setEditingDebtAddition(null)}
-          data={editingDebtAddition}
-          onUpdate={handleUpdateDebtAddition}
-          currency={activeProfile.currency}
-      />}
-      {activeProfile && <GiftFixedExpenseModal
-        isOpen={!!giftingFixedExpense}
-        onClose={() => setGiftingFixedExpense(null)}
-        expense={giftingFixedExpense}
-        onConfirm={handleConfirmFixedExpenseAsGift}
-        currency={activeProfile.currency}
-        minDateForExpenses={minDateForActions}
-      />}
+                liabilities={activeProfile.data.liabilities || []}
+                onOpenDebtPaymentModal={setPayingDebt}
+                onOpenAddValueToDebtModal={setAddingValueToDebt}
+                onOpenEditDebtModal={setEditingDebt}
+                onOpenDebtDetailModal={setViewingDebt}
+                onNavigate={setCurrentPage}
+                currency={activeProfile.currency}
+            /> }
+            { currentPage === 'ahorros' && <Ahorros
+                profile={activeProfile}
+                savingsBySource={savingsBySource}
+                onNavigate={setCurrentPage}
+                onOpenSpendSavingsModal={() => setIsSpendSavingsModalOpen(true)}
+                currency={activeProfile.currency}
+                manualAssetsValue={manualAssetsValue}
+            /> }
+        </main>
+        <BottomNav currentPage={currentPage} onNavigate={setCurrentPage} />
+      </div>
+        <TransferModal 
+            isOpen={isTransferModalOpen}
+            onClose={() => setIsTransferModalOpen(false)}
+            balancesByMethod={balancesByMethod}
+            bankAccounts={activeProfile.data.bankAccounts}
+            transactions={activeProfile.data.transactions}
+            onAddTransfer={handleAddTransfer}
+            initialDirection={transferDirection}
+            currency={activeProfile.currency}
+        />
+        <FixedExpenseModal
+            isOpen={isFixedExpenseModalOpen}
+            onClose={() => setIsFixedExpenseModalOpen(false)}
+            fixedExpenses={activeProfile.data.fixedExpenses}
+            transactions={activeProfile.data.transactions}
+            categories={activeProfile.data.categories}
+            onAddFixedExpense={handleAddFixedExpense}
+            onDeleteFixedExpense={handleDeleteFixedExpense}
+            currency={activeProfile.currency}
+            onAddCategory={handleAddCategory}
+            onUpdateCategory={handleUpdateCategory}
+            onDeleteCategory={handleDeleteCategory}
+        />
+        { modalConfig && <AssetLiabilityModal 
+            isOpen={isAssetLiabilityModalOpen}
+            onClose={() => setIsAssetLiabilityModalOpen(false)}
+            onSaveLiability={handleSaveLiability}
+            onSaveLoan={handleSaveLoan}
+            onCreateSaving={handleCreateSaving}
+            config={modalConfig}
+            currency={activeProfile.currency}
+            bankAccounts={activeProfile.data.bankAccounts}
+            balancesByMethod={balancesByMethod}
+            minDate={minDateForExpenses}
+        /> }
+        <SpendSavingsModal
+            isOpen={isSpendSavingsModalOpen}
+            onClose={() => setIsSpendSavingsModalOpen(false)}
+            onSpend={handleSpendFromSavings}
+            savingsBySource={savingsBySource}
+            currency={activeProfile.currency}
+            categories={activeProfile.data.categories}
+            onAddCategory={handleAddCategory}
+            onUpdateCategory={handleUpdateCategory}
+            onDeleteCategory={handleDeleteCategory}
+        />
+        <DebtPaymentModal
+            isOpen={!!payingDebt}
+            onClose={() => setPayingDebt(null)}
+            liability={payingDebt}
+            bankAccounts={activeProfile.data.bankAccounts}
+            balancesByMethod={balancesByMethod}
+            onPayDebts={handlePayDebts}
+            currency={activeProfile.currency}
+        />
+        <LoanRepaymentModal
+            isOpen={!!repayingLoan}
+            onClose={() => setRepayingLoan(null)}
+            loan={repayingLoan}
+            bankAccounts={activeProfile.data.bankAccounts}
+            balancesByMethod={balancesByMethod}
+            onReceiveLoanPayments={handleReceiveLoanPayments}
+            currency={activeProfile.currency}
+        />
+        <AddValueToLoanModal
+            isOpen={!!addingValueToLoan}
+            onClose={() => setAddingValueToLoan(null)}
+            loan={addingValueToLoan}
+            bankAccounts={activeProfile.data.bankAccounts}
+            balancesByMethod={balancesByMethod}
+            onAddValue={handleAddValueToLoan}
+            currency={activeProfile.currency}
+        />
+        <EditLoanModal
+            isOpen={!!editingLoan}
+            onClose={() => setEditingLoan(null)}
+            loan={editingLoan}
+            onUpdateLoan={handleUpdateLoan}
+            currency={activeProfile.currency}
+        />
+        <LoanDetailModal
+            isOpen={!!viewingLoan}
+            onClose={() => setViewingLoan(null)}
+            loan={viewingLoan}
+            transactions={activeProfile.data.transactions}
+            bankAccounts={activeProfile.data.bankAccounts}
+            currency={activeProfile.currency}
+            onOpenEditLoanAdditionModal={(loan, addition) => setEditingLoanAddition({ loan, addition })}
+        />
+        <EditLoanAdditionModal
+            isOpen={!!editingLoanAddition}
+            onClose={() => setEditingLoanAddition(null)}
+            data={editingLoanAddition}
+            onUpdate={handleUpdateLoanAddition}
+            currency={activeProfile.currency}
+        />
+        <AddValueToDebtModal
+            isOpen={!!addingValueToDebt}
+            onClose={() => setAddingValueToDebt(null)}
+            debt={addingValueToDebt}
+            bankAccounts={activeProfile.data.bankAccounts}
+            balancesByMethod={balancesByMethod}
+            onAddValue={handleAddValueToDebt}
+            currency={activeProfile.currency}
+        />
+        <EditDebtModal
+            isOpen={!!editingDebt}
+            onClose={() => setEditingDebt(null)}
+            debt={editingDebt}
+            onUpdateDebt={handleUpdateDebt}
+            currency={activeProfile.currency}
+        />
+        <DebtDetailModal
+            isOpen={!!viewingDebt}
+            onClose={() => setViewingDebt(null)}
+            debt={viewingDebt}
+            transactions={activeProfile.data.transactions}
+            bankAccounts={activeProfile.data.bankAccounts}
+            currency={activeProfile.currency}
+            onOpenEditDebtAdditionModal={(debt, addition) => setEditingDebtAddition({ debt, addition })}
+        />
+        <EditDebtAdditionModal
+            isOpen={!!editingDebtAddition}
+            onClose={() => setEditingDebtAddition(null)}
+            data={editingDebtAddition}
+            onUpdate={handleUpdateDebtAddition}
+            currency={activeProfile.currency}
+        />
+        <GiftFixedExpenseModal
+            isOpen={!!giftingFixedExpense}
+            onClose={() => setGiftingFixedExpense(null)}
+            expense={giftingFixedExpense}
+            onConfirm={handleConfirmFixedExpenseAsGift}
+            currency={activeProfile.currency}
+            minDateForExpenses={minDateForExpenses}
+        />
+        <FloatingActionButton
+            menuItems={menuItems}
+            buttonClass="bg-gradient-to-br from-amber-400 to-amber-500"
+            ringColorClass="focus:ring-amber-300"
+            position={fabPosition}
+            onPositionChange={setFabPosition}
+        />
     </div>
   );
 };
-
+// FIX: Added default export to fix module resolution error.
 export default App;

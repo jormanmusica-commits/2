@@ -84,7 +84,7 @@ const Resumen: React.FC<ResumenProps> = ({
         const isGift = !!t.isGift;
 
         if (('ingreso'.startsWith(lowerCaseSearchTerm) || 'ingresos'.startsWith(lowerCaseSearchTerm)) && isIncome && !isTransfer) return true;
-        if (('gasto'.startsWith(lowerCaseSearchTerm) || 'gastos'.startsWith(lowerCaseSearchTerm)) && isExpense && !isTransfer) return true;
+        if (('gasto'.startsWith(lowerCaseSearchTerm) || 'gastos'.startsWith(lowerCaseSearchTerm)) && isExpense && !isTransfer && !isGift) return true;
         if (('transferencia'.startsWith(lowerCaseSearchTerm) || 'transferencias'.startsWith(lowerCaseSearchTerm)) && isTransfer) return true;
         if (('regalo'.startsWith(lowerCaseSearchTerm) || 'regalos'.startsWith(lowerCaseSearchTerm)) && isGift) return true;
 
