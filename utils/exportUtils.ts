@@ -1,4 +1,4 @@
-import { Profile } from './types';
+import { Profile, ExportPayload } from './types';
 
 const CASH_METHOD_ID = 'efectivo';
 
@@ -16,21 +16,6 @@ const sanitizeCsvField = (field: any): string => {
 
 // Create a CSV row from an array of values.
 const toCsvRow = (arr: any[]): string => arr.map(sanitizeCsvField).join(',') + '\r\n';
-
-interface ExportSummary {
-  balance: number;
-  cashBalance: number;
-  monthlyIncome: number;
-  monthlyExpenses: number;
-  totalIncome: number;
-  totalExpenses: number;
-}
-
-interface ExportPayload {
-  profile: Profile;
-  summary: ExportSummary;
-  balancesByMethod: Record<string, number>;
-}
 
 export const exportProfileToCsv = (payload: ExportPayload): string => {
   const { profile, summary, balancesByMethod } = payload;

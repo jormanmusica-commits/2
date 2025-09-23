@@ -18,7 +18,7 @@ interface PatrimonioDetailModalProps {
 const DetailRow: React.FC<{ label: string; children: React.ReactNode; }> = ({ label, children }) => (
     <div className="flex justify-between items-start py-3 border-b border-gray-200 dark:border-gray-700/50">
         <span className="font-medium text-gray-500 dark:text-gray-400">{label}</span>
-        <div className="font-semibold text-right">{children}</div>
+        <div className="font-semibold text-right text-gray-800 dark:text-gray-100">{children}</div>
     </div>
 );
 
@@ -105,7 +105,7 @@ const PatrimonioDetailModal: React.FC<PatrimonioDetailModalProps> = ({ isOpen, o
             aria-labelledby="patrimonio-detail-modal-title"
         >
             <div
-                className="bg-white dark:bg-gray-800 dark:border dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-md m-4 flex flex-col"
+                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 dark:border dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-md m-4 flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="flex items-start justify-between p-4 border-b border-gray-200 dark:border-gray-700">

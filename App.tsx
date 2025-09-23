@@ -634,7 +634,8 @@ const App: React.FC = () => {
 
   // FIX: Moved useMemo for balances before its use in handleCreateSaving
   const { balance, balancesByMethod } = useMemo(() => {
-    if (!activeProfile) return { balance: 0, balancesByMethod: {} };
+    // FIX: Explicitly cast the empty object to `Record<string, number>` to prevent TypeScript from inferring `balancesByMethod` as `Record<string, unknown>`, which caused cascading type errors.
+    if (!activeProfile) return { balance: 0, balancesByMethod: {} as Record<string, number> };
 
     const balances: Record<string, number> = {};
     activeProfile.data.bankAccounts.forEach(acc => balances[acc.id] = 0);
@@ -980,7 +981,8 @@ const App: React.FC = () => {
   }, [getDefaultFabPosition]);
 
     const { monthlyIncome, monthlyExpenses, monthlyIncomeByBank, monthlyIncomeByCash, monthlyExpensesByBank, monthlyExpensesByCash, totalIncome, totalExpenses, manualAssetsValue, totalLiabilitiesValue, totalLoansValue, savingsBySource } = useMemo(() => {
-    if (!activeProfile) return { monthlyIncome: 0, monthlyExpenses: 0, monthlyIncomeByBank: 0, monthlyIncomeByCash: 0, monthlyExpensesByBank: 0, monthlyExpensesByCash: 0, totalIncome: 0, totalExpenses: 0, manualAssetsValue: 0, totalLiabilitiesValue: 0, totalLoansValue: 0, savingsBySource: {} };
+    // FIX: Explicitly cast the empty object to the correct type to prevent TypeScript from inferring `savingsBySource` as `Record<string, unknown>`, which caused cascading type errors in consuming components.
+    if (!activeProfile) return { monthlyIncome: 0, monthlyExpenses: 0, monthlyIncomeByBank: 0, monthlyIncomeByCash: 0, monthlyExpensesByBank: 0, monthlyExpensesByCash: 0, totalIncome: 0, totalExpenses: 0, manualAssetsValue: 0, totalLiabilitiesValue: 0, totalLoansValue: 0, savingsBySource: {} as Record<string, { total: number, name: string, color: string }> };
 
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -1288,13 +1290,35 @@ const App: React.FC = () => {
         setEditingDebtAddition(null);
     }, []);
 
-    const menuItems: MenuItem[] = [
-        { label: 'Gasto', icon: <ArrowDownIcon className="w-6 h-6"/>, onClick: () => setCurrentPage('gastos'), color: '#ef4444' },
-        { label: 'Ingreso', icon: <ArrowUpIcon className="w-6 h-6"/>, onClick: () => setCurrentPage('ingresos'), color: '#008f39' },
-        { label: 'Ahorro', icon: <ScaleIcon className="w-6 h-6"/>, onClick: () => { setModalConfig({ type: 'asset' }); setIsAssetLiabilityModalOpen(true); }, color: '#22c55e' },
-        { label: 'Deuda', icon: <ScaleIcon className="w-6 h-6"/>, onClick: () => { setModalConfig({ type: 'liability' }); setIsAssetLiabilityModalOpen(true); }, color: '#ef4444' },
-        { label: 'Préstamo', icon: <ScaleIcon className="w-6 h-6"/>, onClick: () => { setModalConfig({ type: 'loan' }); setIsAssetLiabilityModalOpen(true); }, color: '#3b82f6' }
-    ];
+    const handleAhorroClick = useCallback(() => { setModalConfig({ type: 'asset' }); setIsAssetLiabilityModalOpen(true); }, []);
+    const handleDeudaClick = useCallback(() => { setModalConfig({ type: 'liability' }); setIsAssetLiabilityModalOpen(true); }, []);
+    const handlePrestamoClick = useCallback(() => { setModalConfig({ type: 'loan' }); setIsAssetLiabilityModalOpen(true); }, []);
+
+    const patrimonioMenuItems: MenuItem[] = useMemo(() => [
+        { label: 'Ahorro', icon: <ScaleIcon className="w-6 h-6"/>, onClick: handleAhorroClick, color: '#22c55e' },
+        { label: 'Deuda', icon: <ScaleIcon className="w-6 h-6"/>, onClick: handleDeudaClick, color: '#ef4444' },
+        { label: 'Préstamo', icon: <ScaleIcon className="w-6 h-6"/>, onClick: handlePrestamoClick, color: '#3b82f6' }
+    ], [handleAhorroClick, handleDeudaClick, handlePrestamoClick]);
+
+    const handleGastoClick = useCallback(() => setCurrentPage('gastos'), []);
+    const handleIngresoClick = useCallback(() => setCurrentPage('ingresos'), []);
+
+    const resumenMenuItems: MenuItem[] = useMemo(() => [
+        { label: 'Gasto', icon: <ArrowDownIcon className="w-6 h-6"/>, onClick: handleGastoClick, color: '#ef4444' },
+        { label: 'Ingreso', icon: <ArrowUpIcon className="w-6 h-6"/>, onClick: handleIngresoClick, color: '#008f39' },
+    ], [handleGastoClick, handleIngresoClick]);
+
+
+    const menuItems = useMemo((): MenuItem[] => {
+      const patrimonioPages: Page[] = ['patrimonio', 'prestamos', 'deudas', 'ahorros'];
+      if (currentPage === 'resumen' || currentPage === 'inicio') {
+        return resumenMenuItems;
+      }
+      if (patrimonioPages.includes(currentPage)) {
+        return patrimonioMenuItems;
+      }
+      return [];
+    }, [currentPage, resumenMenuItems, patrimonioMenuItems]);
 
     if (!activeProfileId || !activeProfile) {
         return (
@@ -1570,13 +1594,15 @@ const App: React.FC = () => {
             currency={activeProfile.currency}
             minDateForExpenses={minDateForExpenses}
         />
-        <FloatingActionButton
-            menuItems={menuItems}
-            buttonClass="bg-gradient-to-br from-amber-400 to-amber-500"
-            ringColorClass="focus:ring-amber-300"
-            position={fabPosition}
-            onPositionChange={setFabPosition}
-        />
+        {menuItems.length > 0 && (
+            <FloatingActionButton
+                menuItems={menuItems}
+                buttonClass="bg-gradient-to-br from-amber-400 to-amber-500"
+                ringColorClass="focus:ring-amber-300"
+                position={fabPosition}
+                onPositionChange={setFabPosition}
+            />
+        )}
     </div>
   );
 };

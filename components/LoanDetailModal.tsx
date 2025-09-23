@@ -124,7 +124,7 @@ const LoanDetailModal: React.FC<LoanDetailModalProps> = ({
       aria-labelledby="loan-detail-modal-title"
     >
       <div
-        className="bg-white dark:bg-gray-900 dark:border dark:border-gray-800 rounded-2xl shadow-2xl w-full max-w-md m-4 flex flex-col max-h-[90vh]"
+        className="bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 dark:border dark:border-gray-800 rounded-2xl shadow-2xl w-full max-w-md m-4 flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">

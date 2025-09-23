@@ -121,3 +121,19 @@ export type HistoryItemType = (Asset & { patrimonioType: 'asset', amount: number
                        (Transaction & { patrimonioType: 'loan-addition', name: string }) |
                        (Transaction & { patrimonioType: 'debt-addition', name: string, sourceDetails?: { name: string, color: string } }) |
                        (Transaction & { patrimonioType: 'asset-spend', name: string });
+
+// FIX: Moved ExportSummary and ExportPayload to centralize types and resolve import errors.
+export interface ExportSummary {
+  balance: number;
+  cashBalance: number;
+  monthlyIncome: number;
+  monthlyExpenses: number;
+  totalIncome: number;
+  totalExpenses: number;
+}
+
+export interface ExportPayload {
+  profile: Profile;
+  summary: ExportSummary;
+  balancesByMethod: Record<string, number>;
+}

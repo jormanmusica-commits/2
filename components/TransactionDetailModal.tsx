@@ -44,7 +44,7 @@ interface TransactionDetailModalProps {
 const DetailRow: React.FC<{ label: string; children: React.ReactNode; }> = ({ label, children }) => (
     <div className="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700/50">
         <span className="font-medium text-gray-500 dark:text-gray-400">{label}</span>
-        <span className="font-semibold text-right">{children}</span>
+        <span className="font-semibold text-right text-gray-800 dark:text-gray-100">{children}</span>
     </div>
 );
 
@@ -89,7 +89,7 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ isOpen,
             aria-labelledby="transaction-detail-modal-title"
         >
             <div
-                className="bg-white dark:bg-gray-800 dark:border dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-md m-4 flex flex-col"
+                className="bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 dark:border dark:border-gray-700 rounded-2xl shadow-2xl w-full max-w-md m-4 flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="flex items-start justify-between p-4 border-b border-gray-200 dark:border-gray-700">
