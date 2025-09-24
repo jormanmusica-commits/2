@@ -76,14 +76,13 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const selectedSourceData = selectedSourceId ? savingsBySource[selectedSourceId] as SavingsSourceData : null;
 
   const handleSubmit = () => {
-    if (!selectedSourceId) return;
+    if (!selectedSourceId || !selectedSourceData) return;
     setError('');
     const numericAmount = parseFloat(amount.replace(',', '.')) || 0;
-    // FIX: Cast savingsBySource entry to the correct type to access its properties.
-    const totalSavingsFromSource = (savingsBySource[selectedSourceId] as SavingsSourceData)?.total || 0;
+    const totalSavingsFromSource = selectedSourceData.total;
 
     if (numericAmount <= 0) {
       setError('La cantidad debe ser mayor que cero.');
@@ -107,8 +106,10 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
   };
   
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
-  // FIX: The type of `s` was being inferred as `unknown`, causing a type error. Explicitly typing the accumulator `sum` resolves this.
+  // FIX: The `reduce` function was producing an `unknown` type for its elements. Casting the item `s` to `SavingsSourceData` resolves the type inference issue and allows for safe property access.
   const totalSavings = Object.values(savingsBySource).reduce((sum: number, s) => sum + (s as SavingsSourceData).total, 0);
+
+  if (!isOpen) return null;
 
   return (
     <>
@@ -130,7 +131,7 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
                         <ArrowLeftIcon />
                     </button>
                 )}
-                <h2 id="spend-savings-modal-title" className="text-xl font-bold">
+                <h2 id="spend-savings-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">
                     {selectedSourceId ? "Detalles del Gasto" : "Gastar Ahorros"}
                 </h2>
             </div>
@@ -139,7 +140,7 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
             </button>
           </header>
 
-          {!selectedSourceId ? (
+          {!selectedSourceId || !selectedSourceData ? (
             // ================== STEP 1: SELECT SOURCE ==================
             <div className="p-6 space-y-4">
               <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-center">
@@ -176,11 +177,10 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
               <div className="p-6 space-y-4">
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-center">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {/* FIX: Cast savingsBySource entry to the correct type to access its properties. */}
-                    Ahorros disponibles de <span className="font-semibold" style={{ color: (savingsBySource[selectedSourceId] as SavingsSourceData).color }}>{(savingsBySource[selectedSourceId] as SavingsSourceData).name}</span>
+                    Ahorros disponibles de <span className="font-semibold" style={{ color: selectedSourceData.color }}>{selectedSourceData.name}</span>
                   </p>
-                  {/* FIX: The type of `total` was being inferred as `unknown`. Casting the result of the property access to `number` resolves the issue. */}
-                  <p className="text-2xl font-bold text-green-500">{formatCurrency((savingsBySource[selectedSourceId] as SavingsSourceData).total as number)}</p>
+                  {/* FIX: Safely access properties from the selectedSourceData object, which is now guaranteed to exist and is correctly typed. This resolves the previous type inference issue. */}
+                  <p className="text-2xl font-bold text-green-500">{formatCurrency(selectedSourceData.total)}</p>
                 </div>
 
                 <AmountInput

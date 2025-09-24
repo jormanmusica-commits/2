@@ -128,7 +128,7 @@ const LoanDetailModal: React.FC<LoanDetailModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="loan-detail-modal-title" className="text-xl font-bold truncate">{loan.name}</h2>
+          <h2 id="loan-detail-modal-title" className="text-xl font-bold truncate text-gray-800 dark:text-gray-100">{loan.name}</h2>
           <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
             <CloseIcon />
           </button>

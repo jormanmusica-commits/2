@@ -81,7 +81,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="category-modal-title" className="text-xl font-bold">Categorías</h2>
+          <h2 id="category-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Categorías</h2>
           <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700">
             <CloseIcon className="w-6 h-6" />
           </button>
@@ -113,7 +113,7 @@ const CategoryModal: React.FC<CategoryModalProps> = ({
                   <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: `${cat.color}20` }}>
                     <CategoryIcon iconName={cat.icon} color={cat.color} />
                   </div>
-                  <span>{cat.name}</span>
+                  <span className="text-gray-800 dark:text-gray-100">{cat.name}</span>
                 </button>
               )}
               

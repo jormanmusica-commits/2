@@ -77,7 +77,7 @@ const AddValueToDebtModal: React.FC<AddValueToDebtModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="add-value-debt-modal-title" className="text-xl font-bold">Añadir Valor a la Deuda</h2>
+          <h2 id="add-value-debt-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Añadir Valor a la Deuda</h2>
           <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
             <CloseIcon />
           </button>
@@ -87,7 +87,7 @@ const AddValueToDebtModal: React.FC<AddValueToDebtModalProps> = ({
           {/* Title displayed here */}
           <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-lg">{debt.name}</span>
+              <span className="font-medium text-lg text-gray-800 dark:text-gray-100">{debt.name}</span>
               <span className="font-mono font-semibold text-red-500">{formatCurrency(debt.amount)}</span>
             </div>
             <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">

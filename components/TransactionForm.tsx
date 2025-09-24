@@ -114,7 +114,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg mt-4">
-      <h3 className="text-lg font-bold text-center">{config.title}</h3>
+      <h3 className="text-lg font-bold text-center text-gray-800 dark:text-gray-100">{config.title}</h3>
       
       <div className="space-y-4">
         <AmountInput

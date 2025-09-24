@@ -16,7 +16,7 @@ const KeypadButton: React.FC<{ onClick: () => void; children: React.ReactNode; c
     type="button"
     onClick={onClick}
     aria-label={ariaLabel}
-    className={`flex items-center justify-center text-3xl font-light rounded-lg h-16 bg-gray-200/50 dark:bg-white/10 active:bg-gray-300/50 dark:active:bg-white/20 transition-colors duration-100 ${className}`}
+    className={`flex items-center justify-center text-3xl font-light text-gray-800 dark:text-gray-100 rounded-lg h-16 bg-gray-200/50 dark:bg-white/10 active:bg-gray-300/50 dark:active:bg-white/20 transition-colors duration-100 ${className}`}
   >
     {children}
   </button>

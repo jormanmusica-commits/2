@@ -52,7 +52,7 @@ const EditDebtModal: React.FC<EditDebtModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="edit-debt-modal-title" className="text-xl font-bold">Editar Deuda</h2>
+          <h2 id="edit-debt-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Editar Deuda</h2>
           <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
             <CloseIcon />
           </button>

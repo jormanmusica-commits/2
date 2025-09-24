@@ -32,7 +32,6 @@ import DebtDetailModal from './components/DebtDetailModal';
 import EditDebtAdditionModal from './components/EditDebtAdditionModal';
 import SpendSavingsModal from './components/SpendSavingsModal';
 import GiftFixedExpenseModal from './components/GiftFixedExpenseModal';
-import Header from './components/Header';
 
 
 const CASH_METHOD_ID = 'efectivo';
@@ -1380,8 +1379,7 @@ const App: React.FC = () => {
   return (
     <div className={`app-container ${theme}`}>
       <div className="flex flex-col min-h-screen">
-        <Header theme={theme} onToggleTheme={handleToggleTheme} />
-        <main className="flex-grow container mx-auto px-4 py-6 pb-24 max-w-3xl">
+        <main className="flex-grow container mx-auto px-4 pt-12 pb-24 max-w-3xl">
           { (currentPage === 'inicio' || currentPage === 'resumen') && <Resumen 
               profile={activeProfile}
               balance={balance}

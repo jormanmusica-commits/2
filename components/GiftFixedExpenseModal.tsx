@@ -47,14 +47,14 @@ const GiftFixedExpenseModal: React.FC<GiftFixedExpenseModalProps> = ({
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 flex items-center justify-center animate-fade-in" onClick={onClose}>
       <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-800 rounded-2xl shadow-2xl w-full max-w-md m-4 flex flex-col" onClick={(e) => e.stopPropagation()}>
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold">Marcar Gasto como Regalo</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Marcar Gasto como Regalo</h2>
           <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"><CloseIcon /></button>
         </header>
 
         <div className="p-4 space-y-4">
           <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
             <div className="flex items-center justify-between text-lg">
-              <span className="font-medium">{expense.name}</span>
+              <span className="font-medium text-gray-800 dark:text-gray-100">{expense.name}</span>
               <span className="font-mono font-semibold text-teal-500">{formatCurrency(expense.amount)}</span>
             </div>
           </div>

@@ -132,7 +132,7 @@ const FixedExpenseModal: React.FC<FixedExpenseModalProps> = ({
           onClick={(e) => e.stopPropagation()}
         >
           <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 id="fixed-expense-modal-title" className="text-xl font-bold">Gastos Fijos</h2>
+            <h2 id="fixed-expense-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Gastos Fijos</h2>
             <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
               <CloseIcon className="w-6 h-6" />
             </button>
@@ -159,7 +159,7 @@ const FixedExpenseModal: React.FC<FixedExpenseModalProps> = ({
                         </div>
                       )}
                       <div>
-                        <span className={`font-semibold transition-colors ${isPaid ? 'line-through' : ''}`}>{exp.name}</span>
+                        <span className={`font-semibold text-gray-800 dark:text-gray-200 transition-colors ${isPaid ? 'line-through' : ''}`}>{exp.name}</span>
                         {category && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{category.name}</p>}
                       </div>
                     </div>

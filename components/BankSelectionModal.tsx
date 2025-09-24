@@ -46,7 +46,7 @@ const BankSelectionModal: React.FC<BankSelectionModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="bank-selection-modal-title" className="text-xl font-bold">Selecciona una cuenta</h2>
+          <h2 id="bank-selection-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Selecciona una cuenta</h2>
           <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
             <CloseIcon />
           </button>
@@ -69,7 +69,7 @@ const BankSelectionModal: React.FC<BankSelectionModalProps> = ({
               >
                 <div className="flex items-center space-x-4">
                   <span className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: acc.color }}></span>
-                  <span className="font-semibold text-lg">{acc.name}</span>
+                  <span className="font-semibold text-lg text-gray-800 dark:text-gray-100">{acc.name}</span>
                 </div>
                 <span className={`font-mono text-lg ${isDisabled ? 'text-gray-500 dark:text-gray-400' : 'text-gray-700 dark:text-gray-300'}`}>
                   {formatCurrency(balance)}

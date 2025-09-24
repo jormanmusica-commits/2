@@ -60,7 +60,7 @@ const EditDebtAdditionModal: React.FC<EditDebtAdditionModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 id="edit-addition-modal-title" className="text-xl font-bold">Editar Ampliación de Deuda</h2>
+          <h2 id="edit-addition-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Editar Ampliación de Deuda</h2>
           <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
             <CloseIcon />
           </button>
@@ -68,7 +68,7 @@ const EditDebtAdditionModal: React.FC<EditDebtAdditionModalProps> = ({
 
         <div className="p-4 space-y-4 overflow-y-auto">
           <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-            <div className="text-lg font-medium">{debt.name}</div>
+            <div className="text-lg font-medium text-gray-800 dark:text-gray-100">{debt.name}</div>
             <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Deuda actual: {formatCurrency(debt.amount)}
             </div>
