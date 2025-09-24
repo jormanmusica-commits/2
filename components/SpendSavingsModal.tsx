@@ -107,8 +107,8 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
   };
   
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
-  // FIX: Cast savingsBySource values to the correct type to perform the reduce operation.
-  const totalSavings = Object.values(savingsBySource).reduce((sum, s) => sum + (s as SavingsSourceData).total, 0);
+  // FIX: The type of `s` was being inferred as `unknown`, causing a type error. Explicitly typing the accumulator `sum` resolves this.
+  const totalSavings = Object.values(savingsBySource).reduce((sum: number, s) => sum + (s as SavingsSourceData).total, 0);
 
   return (
     <>
@@ -179,8 +179,8 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
                     {/* FIX: Cast savingsBySource entry to the correct type to access its properties. */}
                     Ahorros disponibles de <span className="font-semibold" style={{ color: (savingsBySource[selectedSourceId] as SavingsSourceData).color }}>{(savingsBySource[selectedSourceId] as SavingsSourceData).name}</span>
                   </p>
-                  {/* FIX: Cast savingsBySource entry to the correct type to access its properties. */}
-                  <p className="text-2xl font-bold text-green-500">{formatCurrency((savingsBySource[selectedSourceId] as SavingsSourceData).total)}</p>
+                  {/* FIX: The type of `total` was being inferred as `unknown`. Casting the result of the property access to `number` resolves the issue. */}
+                  <p className="text-2xl font-bold text-green-500">{formatCurrency((savingsBySource[selectedSourceId] as SavingsSourceData).total as number)}</p>
                 </div>
 
                 <AmountInput

@@ -944,7 +944,13 @@ const App: React.FC = () => {
     const dataToExport = { profiles, activeProfileId, theme, fabPosition };
     const jsonString = JSON.stringify(dataToExport, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
-    const fileName = 'income_tracker_backup.json';
+    
+    const now = new Date();
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const monthAbbr = meses[now.getMonth()];
+    const day = now.getDate();
+    const fileName = `GASTOS-${monthAbbr}-${day}.json`;
+
     const file = new File([blob], fileName, { type: 'application/json' });
 
     // Use Web Share API if available (better for mobile)
