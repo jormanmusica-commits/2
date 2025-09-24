@@ -634,8 +634,11 @@ const App: React.FC = () => {
 
   // FIX: Moved useMemo for balances before its use in handleCreateSaving
   const { balance, balancesByMethod } = useMemo(() => {
-    // FIX: Explicitly cast the empty object to `Record<string, number>` to prevent TypeScript from inferring `balancesByMethod` as `Record<string, unknown>`, which caused cascading type errors.
-    if (!activeProfile) return { balance: 0, balancesByMethod: {} as Record<string, number> };
+    // FIX: The type of `balancesByMethod` was being inferred as `Record<string, unknown>`, causing type errors. Explicitly typing the returned object fixes this.
+    if (!activeProfile) {
+      const balancesByMethod: Record<string, number> = {};
+      return { balance: 0, balancesByMethod };
+    }
 
     const balances: Record<string, number> = {};
     activeProfile.data.bankAccounts.forEach(acc => balances[acc.id] = 0);
@@ -937,18 +940,40 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   }, [activeProfile, balance, balancesByMethod]);
 
-  const handleExportAllDataToJson = useCallback(() => {
+  const handleExportAllDataToJson = useCallback(async () => {
     const dataToExport = { profiles, activeProfileId, theme, fabPosition };
     const jsonString = JSON.stringify(dataToExport, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'income_tracker_backup.json');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const fileName = 'income_tracker_backup.json';
+    const file = new File([blob], fileName, { type: 'application/json' });
+
+    // Use Web Share API if available (better for mobile)
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'Copia de Seguridad de Income Tracker',
+          text: 'Aquí está tu copia de seguridad de todos los datos de la aplicación.',
+        });
+      } catch (error) {
+        // Log error, but don't show an alert for user cancellation
+        if (error instanceof Error && error.name !== 'AbortError') {
+            console.error('Error al compartir el archivo:', error);
+            alert('No se pudo compartir el archivo. Por favor, inténtalo de nuevo.');
+        }
+      }
+    } else {
+      // Fallback for desktop or unsupported browsers
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url); // Clean up the object URL
+    }
   }, [profiles, activeProfileId, theme, fabPosition]);
 
   const handleImportDataFromJson = useCallback((file: File) => {
@@ -981,8 +1006,11 @@ const App: React.FC = () => {
   }, [getDefaultFabPosition]);
 
     const { monthlyIncome, monthlyExpenses, monthlyIncomeByBank, monthlyIncomeByCash, monthlyExpensesByBank, monthlyExpensesByCash, totalIncome, totalExpenses, manualAssetsValue, totalLiabilitiesValue, totalLoansValue, savingsBySource } = useMemo(() => {
-    // FIX: Explicitly cast the empty object to the correct type to prevent TypeScript from inferring `savingsBySource` as `Record<string, unknown>`, which caused cascading type errors in consuming components.
-    if (!activeProfile) return { monthlyIncome: 0, monthlyExpenses: 0, monthlyIncomeByBank: 0, monthlyIncomeByCash: 0, monthlyExpensesByBank: 0, monthlyExpensesByCash: 0, totalIncome: 0, totalExpenses: 0, manualAssetsValue: 0, totalLiabilitiesValue: 0, totalLoansValue: 0, savingsBySource: {} as Record<string, { total: number, name: string, color: string }> };
+    // FIX: The type of `savingsBySource` was being inferred as `Record<string, unknown>`, causing type errors. Explicitly typing the returned object fixes this.
+    if (!activeProfile) {
+        const savingsBySource: Record<string, { total: number, name: string, color: string }> = {};
+        return { monthlyIncome: 0, monthlyExpenses: 0, monthlyIncomeByBank: 0, monthlyIncomeByCash: 0, monthlyExpensesByBank: 0, monthlyExpensesByCash: 0, totalIncome: 0, totalExpenses: 0, manualAssetsValue: 0, totalLiabilitiesValue: 0, totalLoansValue: 0, savingsBySource };
+    }
 
     const now = new Date();
     const currentMonth = now.getMonth();

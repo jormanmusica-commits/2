@@ -55,7 +55,8 @@ const Gastos: React.FC<GastosProps> = ({
 
     const bankBalance = Object.entries(balancesByMethod)
       .filter(([id]) => id !== CASH_METHOD_ID)
-      .reduce((sum, [, amount]) => sum + amount, 0);
+      // FIX: Cast amount to number to resolve TypeScript error where it was inferred as unknown.
+      .reduce((sum, [, amount]) => sum + (amount as number), 0);
     const cashBalance = balancesByMethod[CASH_METHOD_ID] || 0;
 
     const isBankDisabled = bankBalance <= 0;

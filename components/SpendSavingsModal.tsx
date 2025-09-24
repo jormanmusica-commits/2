@@ -26,6 +26,9 @@ interface SpendSavingsModalProps {
   onDeleteCategory: (id: string) => void;
 }
 
+// FIX: Define an explicit type for savings source data to use in type assertions.
+type SavingsSourceData = { total: number; name: string; color: string; };
+
 const CategoryIcon: React.FC<{ iconName: string; color: string; }> = ({ iconName, color }) => {
     const iconProps = { className: "w-5 h-5", style: { color } };
     switch (iconName) {
@@ -79,7 +82,8 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
     if (!selectedSourceId) return;
     setError('');
     const numericAmount = parseFloat(amount.replace(',', '.')) || 0;
-    const totalSavingsFromSource = savingsBySource[selectedSourceId]?.total || 0;
+    // FIX: Cast savingsBySource entry to the correct type to access its properties.
+    const totalSavingsFromSource = (savingsBySource[selectedSourceId] as SavingsSourceData)?.total || 0;
 
     if (numericAmount <= 0) {
       setError('La cantidad debe ser mayor que cero.');
@@ -103,7 +107,8 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
   };
   
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
-  const totalSavings = Object.values(savingsBySource).reduce((sum, s) => sum + s.total, 0);
+  // FIX: Cast savingsBySource values to the correct type to perform the reduce operation.
+  const totalSavings = Object.values(savingsBySource).reduce((sum, s) => sum + (s as SavingsSourceData).total, 0);
 
   return (
     <>
@@ -144,7 +149,10 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
               <h3 className="font-semibold text-center text-gray-700 dark:text-gray-300">Paso 1: Selecciona el origen de los ahorros a gastar</h3>
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {Object.keys(savingsBySource).length > 0 ? (
-                  Object.entries(savingsBySource).map(([sourceId, sourceData]) => (
+                  Object.entries(savingsBySource).map(([sourceId, _sourceData]) => {
+                    // FIX: Cast sourceData to the correct type to access its properties.
+                    const sourceData = _sourceData as SavingsSourceData;
+                    return (
                     <button
                       key={sourceId}
                       onClick={() => setSelectedSourceId(sourceId)}
@@ -156,7 +164,7 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
                       </div>
                       <span className="font-mono font-bold text-green-500">{formatCurrency(sourceData.total)}</span>
                     </button>
-                  ))
+                  )})
                 ) : (
                   <p className="text-center text-gray-500 dark:text-gray-400 py-4">No hay ahorros para gastar.</p>
                 )}
@@ -168,9 +176,11 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
               <div className="p-6 space-y-4">
                 <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-center">
                   <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                    Ahorros disponibles de <span className="font-semibold" style={{ color: savingsBySource[selectedSourceId].color }}>{savingsBySource[selectedSourceId].name}</span>
+                    {/* FIX: Cast savingsBySource entry to the correct type to access its properties. */}
+                    Ahorros disponibles de <span className="font-semibold" style={{ color: (savingsBySource[selectedSourceId] as SavingsSourceData).color }}>{(savingsBySource[selectedSourceId] as SavingsSourceData).name}</span>
                   </p>
-                  <p className="text-2xl font-bold text-green-500">{formatCurrency(savingsBySource[selectedSourceId].total)}</p>
+                  {/* FIX: Cast savingsBySource entry to the correct type to access its properties. */}
+                  <p className="text-2xl font-bold text-green-500">{formatCurrency((savingsBySource[selectedSourceId] as SavingsSourceData).total)}</p>
                 </div>
 
                 <AmountInput

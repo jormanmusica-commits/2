@@ -11,6 +11,9 @@ interface AhorrosProps {
   manualAssetsValue: number;
 }
 
+// FIX: Define an explicit type for savings source data to use in type assertions.
+type SavingsSourceData = { total: number; name: string; color: string; };
+
 const Ahorros: React.FC<AhorrosProps> = ({
   profile,
   savingsBySource,
@@ -79,7 +82,9 @@ const Ahorros: React.FC<AhorrosProps> = ({
         <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-3">Ahorros por Origen</h3>
         <div className="space-y-3">
           {Object.entries(savingsBySource).length > 0 ? (
-            Object.entries(savingsBySource).map(([sourceId, sourceData]) => {
+            Object.entries(savingsBySource).map(([sourceId, _sourceData]) => {
+              // FIX: Cast sourceData to the correct type to access its properties.
+              const sourceData = _sourceData as SavingsSourceData;
               const isExpanded = expandedSourceId === sourceId;
               const detailedAssets = profile.data.assets
                 .filter(asset => asset.sourceMethodId === sourceId)
