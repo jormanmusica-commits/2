@@ -1,5 +1,5 @@
 {
   "name": "2",
-  "description": "Una aplicación web para llevar un control de tus ingresos. Incluye modo oscuro y claro con un tema verde.",
+  "description": "Una completa aplicación de finanzas personales para un control total de tu dinero. Registra ingresos, gastos, transferencias y gestiona tu patrimonio incluyendo ahorros, deudas y préstamos. Soporta múltiples perfiles para diferentes países y monedas. Incluye modo oscuro, reportes detallados y opciones de exportación.",
   "requestFramePermissions": []
 }

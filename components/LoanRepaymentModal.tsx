@@ -109,8 +109,8 @@ const LoanRepaymentModal: React.FC<LoanRepaymentModalProps> = ({
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 id="loan-repayment-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Recibir Pago de Préstamo</h2>
-          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-            <CloseIcon />
+          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <CloseIcon className="w-6 h-6" />
           </button>
         </header>
 
@@ -129,7 +129,7 @@ const LoanRepaymentModal: React.FC<LoanRepaymentModalProps> = ({
                         inputMode="decimal"
                         value={paymentAmount}
                         onChange={(e) => handleAmountChange(e.target.value)}
-                        className="w-full pl-3 pr-12 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700"
+                        className="w-full pl-3 pr-12 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         autoFocus
                     />
                     <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 dark:text-gray-400 font-semibold">

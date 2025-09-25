@@ -157,8 +157,8 @@ const AssetLiabilityModal: React.FC<AssetLiabilityModalProps> = ({
             >
                 <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                     <h2 id="asset-liability-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">{modalConfig.title}</h2>
-                    <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                        <CloseIcon />
+                    <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <CloseIcon className="w-6 h-6" />
                     </button>
                 </header>
 
@@ -177,7 +177,7 @@ const AssetLiabilityModal: React.FC<AssetLiabilityModalProps> = ({
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder={isLoan ? "Ej: Préstamo a Juan Pérez" : "Ej: Préstamo Coche"}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 />
                             </div>
 
@@ -191,7 +191,7 @@ const AssetLiabilityModal: React.FC<AssetLiabilityModalProps> = ({
                                     onChange={(e) => setDetails(e.target.value)}
                                     placeholder={isLoan ? "Ej: Para la entrada del coche" : "Ej: Cuotas, intereses, etc."}
                                     rows={3}
-                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                                 />
                             </div>
 

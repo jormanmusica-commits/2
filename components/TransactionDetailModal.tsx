@@ -102,7 +102,7 @@ const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ isOpen,
                             <p className={`text-2xl font-bold ${colorClass}`}>{sign}{formattedAmount}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} aria-label="Cerrar modal" className="p-2 -mt-2 -mr-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <button onClick={onClose} aria-label="Cerrar modal" className="p-2 -mt-2 -mr-2 rounded-full text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                         <CloseIcon className="w-6 h-6" />
                     </button>
                 </header>

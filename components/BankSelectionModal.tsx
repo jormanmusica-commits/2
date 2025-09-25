@@ -47,8 +47,8 @@ const BankSelectionModal: React.FC<BankSelectionModalProps> = ({
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 id="bank-selection-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Selecciona una cuenta</h2>
-          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-            <CloseIcon />
+          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <CloseIcon className="w-6 h-6" />
           </button>
         </header>
 

@@ -62,6 +62,8 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
     return new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: currency,
+        minimumFractionDigits: amountValue % 1 === 0 ? 0 : 2,
+        maximumFractionDigits: 2,
     }).format(amountValue);
   };
   
@@ -106,8 +108,8 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
   };
   
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
-  // FIX: The `reduce` function was producing an `unknown` type for its elements. Casting the item `s` to `SavingsSourceData` resolves the type inference issue and allows for safe property access.
-  const totalSavings = Object.values(savingsBySource).reduce((sum: number, s) => sum + (s as SavingsSourceData).total, 0);
+  // FIX: Corrected a TypeScript error where the `reduce` function was failing due to `Object.values` potentially returning `unknown[]` under strict type checking. The fix ensures that the `total` property is safely accessed and treated as a number, preventing the assignment of `unknown` to a `number` type.
+  const totalSavings = (Object.values(savingsBySource) as SavingsSourceData[]).reduce((sum, s) => sum + (s.total || 0), 0);
 
   if (!isOpen) return null;
 
@@ -135,8 +137,8 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
                     {selectedSourceId ? "Detalles del Gasto" : "Gastar Ahorros"}
                 </h2>
             </div>
-            <button onClick={onClose} aria-label="Cerrar modal" className="p-2 -mr-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-              <CloseIcon />
+            <button onClick={onClose} aria-label="Cerrar modal" className="p-2 -mr-2 rounded-full text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+              <CloseIcon className="w-6 h-6" />
             </button>
           </header>
 
@@ -201,7 +203,7 @@ const SpendSavingsModal: React.FC<SpendSavingsModalProps> = ({
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Ej: Vacaciones, entrada de piso..."
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50 dark:bg-gray-700"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   />
                 </div>
                 <div>

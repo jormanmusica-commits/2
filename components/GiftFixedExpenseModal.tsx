@@ -48,7 +48,7 @@ const GiftFixedExpenseModal: React.FC<GiftFixedExpenseModalProps> = ({
       <div className="bg-white dark:bg-gray-900 dark:border dark:border-gray-800 rounded-2xl shadow-2xl w-full max-w-md m-4 flex flex-col" onClick={(e) => e.stopPropagation()}>
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Marcar Gasto como Regalo</h2>
-          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"><CloseIcon /></button>
+          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"><CloseIcon className="w-6 h-6" /></button>
         </header>
 
         <div className="p-4 space-y-4">
@@ -65,7 +65,7 @@ const GiftFixedExpenseModal: React.FC<GiftFixedExpenseModalProps> = ({
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 rows={2}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 dark:bg-gray-700"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
         </div>
           <div>

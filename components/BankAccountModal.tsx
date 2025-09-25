@@ -95,7 +95,7 @@ const BankAccountModal: React.FC<BankAccountModalProps> = ({
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 id="bank-account-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Gestionar Bancos</h2>
-          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full transition-colors hover:bg-gray-200 dark:hover:bg-gray-700">
+          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full text-gray-800 dark:text-gray-100 transition-colors hover:bg-gray-200 dark:hover:bg-gray-700">
             <CloseIcon className="w-6 h-6" />
           </button>
         </header>

@@ -61,8 +61,8 @@ const EditLoanAdditionModal: React.FC<EditLoanAdditionModalProps> = ({
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 id="edit-addition-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">Editar Ampliación</h2>
-          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-            <CloseIcon />
+          <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+            <CloseIcon className="w-6 h-6" />
           </button>
         </header>
 
@@ -91,7 +91,7 @@ const EditLoanAdditionModal: React.FC<EditLoanAdditionModalProps> = ({
               onChange={(e) => setDetails(e.target.value)}
               placeholder="Añade una nota sobre esta ampliación..."
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             />
           </div>
         </div>
