@@ -14,7 +14,7 @@ interface TransferModalProps {
   bankAccounts: BankAccount[];
   transactions: Transaction[];
   onAddTransfer: (fromMethodId: string, toMethodId: string, amount: number, date: string) => string | void;
-  initialDirection: 'deposit' | 'withdrawal' | null;
+  initialDirection: 'deposit' | 'withdrawal' | 'bank-to-bank' | null;
   currency: string;
 }
 
@@ -44,8 +44,13 @@ const TransferModal: React.FC<TransferModalProps> = ({
             setFromMethod(CASH_METHOD_ID);
             setToMethod(bankAccounts.length > 0 ? bankAccounts[0].id : '');
         } else if (initialDirection === 'withdrawal') { // Bank to Cash
-            setFromMethod(bankAccounts.length > 0 ? bankAccounts[0].id : '');
+            const firstBankWithBalance = bankAccounts.find(b => (balancesByMethod[b.id] || 0) > 0);
+            setFromMethod(firstBankWithBalance ? firstBankWithBalance.id : '');
             setToMethod(CASH_METHOD_ID);
+        } else if (initialDirection === 'bank-to-bank') {
+            const firstBankWithBalance = bankAccounts.find(b => (balancesByMethod[b.id] || 0) > 0);
+            setFromMethod(firstBankWithBalance ? firstBankWithBalance.id : '');
+            setToMethod('');
         }
     } else {
         // Reset form when modal closes
@@ -55,7 +60,13 @@ const TransferModal: React.FC<TransferModalProps> = ({
         setDate(new Date().toISOString().split('T')[0]);
         setError('');
     }
-  }, [isOpen, initialDirection, bankAccounts]);
+  }, [isOpen, initialDirection, bankAccounts, balancesByMethod]);
+
+  useEffect(() => {
+    if (fromMethod && fromMethod === toMethod) {
+        setToMethod('');
+    }
+  }, [fromMethod, toMethod]);
 
   useEffect(() => {
     const numericAmount = parseFloat(amount);
@@ -82,21 +93,36 @@ const TransferModal: React.FC<TransferModalProps> = ({
   ], [bankAccounts, balancesByMethod]);
 
   const fromOptions = useMemo(() => {
-    if (initialDirection === 'withdrawal') {
-        return paymentMethods.filter(pm => pm.id !== CASH_METHOD_ID && pm.balance > 0);
+    if (initialDirection === 'deposit') {
+      return paymentMethods.filter(pm => pm.id === CASH_METHOD_ID && pm.balance > 0);
     }
-    return paymentMethods.filter(pm => pm.id === CASH_METHOD_ID && pm.balance > 0);
+    if (initialDirection === 'withdrawal' || initialDirection === 'bank-to-bank') {
+      return paymentMethods.filter(pm => pm.id !== CASH_METHOD_ID && pm.balance > 0);
+    }
+    return [];
   }, [paymentMethods, initialDirection]);
 
   const toOptions = useMemo(() => {
-    if (initialDirection === 'deposit') {
-        return paymentMethods.filter(pm => pm.id !== CASH_METHOD_ID);
+    if (initialDirection === 'withdrawal') {
+      return paymentMethods.filter(pm => pm.id === CASH_METHOD_ID);
     }
-    return paymentMethods.filter(pm => pm.id === CASH_METHOD_ID);
-  }, [paymentMethods, initialDirection]);
+    if (initialDirection === 'deposit') {
+      return paymentMethods.filter(pm => pm.id !== CASH_METHOD_ID);
+    }
+    if (initialDirection === 'bank-to-bank') {
+      return paymentMethods.filter(pm => pm.id !== CASH_METHOD_ID && pm.id !== fromMethod);
+    }
+    return [];
+  }, [paymentMethods, initialDirection, fromMethod]);
   
-  const pageTitle = initialDirection === 'deposit' ? 'Depositar a Banco' : 'Retirar a Efectivo';
-  const buttonText = initialDirection === 'deposit' ? 'Realizar Depósito' : 'Realizar Retiro';
+  const pageConfig = useMemo(() => {
+    switch (initialDirection) {
+        case 'deposit': return { title: 'Depositar a Banco', buttonText: 'Realizar Depósito' };
+        case 'withdrawal': return { title: 'Retirar a Efectivo', buttonText: 'Realizar Retiro' };
+        case 'bank-to-bank': return { title: 'Transferencia entre Bancos', buttonText: 'Realizar Transferencia' };
+        default: return { title: 'Transferencia', buttonText: 'Confirmar' };
+    }
+  }, [initialDirection]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,7 +180,7 @@ const fromSelectStyle: React.CSSProperties = selectedFromMethodDetails ? {
         onClick={(e) => e.stopPropagation()}
       >
         <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h2 id="transfer-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">{pageTitle}</h2>
+            <h2 id="transfer-modal-title" className="text-xl font-bold text-gray-800 dark:text-gray-100">{pageConfig.title}</h2>
             <button onClick={onClose} aria-label="Cerrar modal" className="p-2 rounded-full text-gray-800 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                 <CloseIcon className="w-6 h-6" />
             </button>
@@ -221,7 +247,7 @@ const fromSelectStyle: React.CSSProperties = selectedFromMethodDetails ? {
                     type="submit"
                     className="w-full bg-[#3b82f6] text-white font-bold py-3 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-all duration-200 ease-in-out hover:bg-[#2563eb] active:scale-95"
                 >
-                    {buttonText}
+                    {pageConfig.buttonText}
                 </button>
             </form>
         </div>

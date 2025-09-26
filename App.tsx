@@ -32,6 +32,7 @@ import DebtDetailModal from './components/DebtDetailModal';
 import EditDebtAdditionModal from './components/EditDebtAdditionModal';
 import SpendSavingsModal from './components/SpendSavingsModal';
 import GiftFixedExpenseModal from './components/GiftFixedExpenseModal';
+import SwitchIcon from './components/icons/SwitchIcon';
 
 
 const CASH_METHOD_ID = 'efectivo';
@@ -314,7 +315,7 @@ const App: React.FC = () => {
   });
   
   const [currentPage, setCurrentPage] = useState<Page>('inicio');
-  const [transferDirection, setTransferDirection] = useState<'deposit' | 'withdrawal' | null>(null);
+  const [transferDirection, setTransferDirection] = useState<'deposit' | 'withdrawal' | 'bank-to-bank' | null>(null);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isProfileCreationModalOpen, setIsProfileCreationModalOpen] = useState(false);
   const [isFixedExpenseModalOpen, setIsFixedExpenseModalOpen] = useState(false);
@@ -1335,11 +1336,16 @@ const App: React.FC = () => {
 
     const handleGastoClick = useCallback(() => setCurrentPage('gastos'), []);
     const handleIngresoClick = useCallback(() => setCurrentPage('ingresos'), []);
+    const handleTransferenciaClick = useCallback(() => {
+        setTransferDirection('bank-to-bank');
+        setIsTransferModalOpen(true);
+    }, []);
 
     const resumenMenuItems: MenuItem[] = useMemo(() => [
         { label: 'Gasto', icon: <ArrowDownIcon className="w-6 h-6"/>, onClick: handleGastoClick, color: '#ef4444' },
         { label: 'Ingreso', icon: <ArrowUpIcon className="w-6 h-6"/>, onClick: handleIngresoClick, color: '#008f39' },
-    ], [handleGastoClick, handleIngresoClick]);
+        { label: 'Transferencia', icon: <SwitchIcon className="w-6 h-6"/>, onClick: handleTransferenciaClick, color: '#3b82f6' }
+    ], [handleGastoClick, handleIngresoClick, handleTransferenciaClick]);
 
 
     const menuItems = useMemo((): MenuItem[] => {
